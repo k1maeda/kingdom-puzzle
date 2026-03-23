@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>王国パズル v3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a0e06;
+    background-image: radial-gradient(ellipse at 20% 20%, #2d1a0a 0%, transparent 60%), radial-gradient(ellipse at 80% 80%, #0f1a0a 0%, transparent 60%);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 10px 20px; font-family: 'Noto Serif JP', Georgia, serif;
+  }
+
+  h1 {
+    font-family: 'Cinzel Decorative', serif; color: #DAA520;
+    text-shadow: 0 0 20px rgba(218,165,32,0.5); font-size: clamp(1.1rem,4vw,1.5rem);
+    margin-bottom: 8px; letter-spacing: 2px;
+  }
+
+  .game-area {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 7px; width: 100%; max-width: 480px;
+  }
+
+  /* ── Top Info Row ── */
+  .top-row {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; color: #906030; font-size: 0.75rem; padding: 0 2px;
+  }
+  .top-row span { color: #C09050; font-weight: bold; }
+
+  /* ── Stage Banner ── */
+  .stage-banner {
+    background: linear-gradient(135deg,#1a2a10,#243018);
+    border: 2px solid #4A7030; border-bottom: none;
+    border-radius: 12px 12px 0 0; padding: 8px 10px; width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .sb-item {
+    background: rgba(0,0,0,0.3); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; padding: 5px 4px; gap: 1px;
+  }
+  .sb-label { font-size: 0.58rem; color: #6A9050; letter-spacing: 0.5px; }
+  .sb-val   { font-size: 1.15rem; font-weight: bold; line-height: 1; color: #B0E070; }
+  .sb-sub   { font-size: 0.52rem; color: #6A9050; }
+  .sb-val.warn   { color: #FFB040; }
+  .sb-val.danger { color: #FF4040; animation: pulse 0.8s infinite; }
+  .sb-val.good   { color: #60FF90; }
+
+  /* ── Grid ── */
+  .grid-wrap {
+    background: linear-gradient(145deg,#2a1a0a,#1a0e06); border: 3px solid #6B4A14;
+    border-bottom-color: #3A2A0A; border-right-color: #3A2A0A;
+    border-radius: 14px; padding: 6px; width: 100%;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.7);
+  }
+  .grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 5px; }
+
+  .cell {
+    aspect-ratio:1; background: linear-gradient(145deg,#5A3C20,#4A2C14);
+    border: 2px solid #3A2210; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+    position: relative; user-select: none; overflow: hidden;
+  }
+  .cell.empty { border-style: dashed; border-color: #4A3220; }
+  .cell.empty:hover { border-color: #8B6020; }
+  .cell.can-place { border-color: #7ABCFF!important; border-style: solid!important; box-shadow: 0 0 8px rgba(122,188,255,0.4); }
+  /* 消える側 */
+  .cell.merge-delete { border: 3px solid #FF3030!important; box-shadow: 0 0 14px rgba(255,48,48,0.8)!important; }
+  /* 残る側 */
+  .cell.merge-keep   { border: 3px solid #00EE77!important; box-shadow: 0 0 14px rgba(0,238,119,0.8)!important; }
+
+  /* オーバーレイラベル（実DOM要素） */
+  .merge-label {
+    position: absolute; inset: 0; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: bold; pointer-events: none; z-index: 3;
+  }
+  .merge-label.del { background: rgba(160,0,0,0.65); color: #FFB0B0; }
+  .merge-label.keep { background: rgba(0,100,50,0.65); color: #AAFFCC; }
+
+  .cell.selected { border-color: #FFD700!important; box-shadow: 0 0 14px rgba(255,215,0,0.55); border-style: solid!important; }
+  .cell.demolish-target {
+    border: 3px solid #FF6600!important;
+    box-shadow: 0 0 14px rgba(255,102,0,0.8)!important;
+  }
+  .cell.demolish-target::after {
+    content: '🔨 解体';
+    position:absolute;inset:0;background:rgba(120,40,0,0.65);
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.62rem;color:#FFD0A0;font-weight:bold;
+    border-radius:5px;z-index:3;pointer-events:none;
+  }
+  .cell.merge-target { border-color: #00FF88!important; border-style: solid!important; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
+
+  .cell[data-lv="1"]{background:linear-gradient(145deg,#5A3C20,#4A2C14)}
+  .cell[data-lv="2"]{background:linear-gradient(145deg,#3C5020,#2C4014)}
+  .cell[data-lv="3"]{background:linear-gradient(145deg,#20405A,#14304A)}
+  .cell[data-lv="4"]{background:linear-gradient(145deg,#50204A,#401038)}
+  .cell[data-lv="5"]{background:linear-gradient(145deg,#4A4010,#382E08)}
+  .cell[data-lv="6"]{background:linear-gradient(145deg,#603010,#481C08)}
+  .cell[data-lv="7"]{background:linear-gradient(145deg,#702010,#500808)}
+
+  .b-lvl { position:absolute; top:2px; left:4px; font-size:0.45rem; color:#FFD700; font-weight:bold; background:rgba(0,0,0,0.45); border-radius:3px; padding:0 2px; }
+  .b-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); line-height:1; }
+  .b-name { font-size:clamp(0.32rem,1vw,0.46rem); color:#F0DCA0; text-align:center; margin-top:1px; line-height:1.2; }
+  .b-prod { position:absolute; bottom:2px; right:3px; font-size:0.38rem; color:#90C888; }
+
+  /* ── Message ── */
+  .message {
+    background: rgba(10,6,2,0.75); border: 1px solid #5A3A14; border-radius: 8px;
+    color: #D0B880; font-size: 0.75rem; min-height: 30px; padding: 5px 12px;
+    width: 100%; text-align: center; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Controls ── */
+  .controls { display: flex; gap: 8px; width: 100%; }
+  .btn {
+    flex:1; padding: 8px; border: 2px solid; border-radius: 8px;
+    font-family: 'Noto Serif JP', serif; font-size: 0.82rem; font-weight: bold;
+    cursor: pointer; transition: transform 0.1s, filter 0.1s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-next { background: linear-gradient(135deg,#9B7918,#DAA520); border-color: #FFD060; color: #1a0e06; }
+  .btn-next:hover { filter: brightness(1.1); box-shadow: 0 4px 14px rgba(218,165,32,0.4); }
+  .btn-cancel { background: linear-gradient(135deg,#2a1a0e,#3d2b1a); border-color: #5A3A14; color: #C0A060; }
+  .btn-demolish { background: linear-gradient(135deg,#2a1205,#4a2208); border-color: #8B3A00; color: #FF9944; }
+  .btn-demolish.active { background: linear-gradient(135deg,#6a2205,#9a3208); border-color: #FF6600; box-shadow: 0 0 10px rgba(255,102,0,0.5); }
+
+  /* ── Cards ── */
+  .cards-section { width: 100%; }
+  .cards-label { color: #906030; font-size: 0.68rem; margin-bottom: 4px; text-align: center; }
+  .cards { display: flex; gap: 7px; }
+  .card {
+    flex:1; background: linear-gradient(160deg,#F5E8C8,#E8D4A4); border: 2px solid #9B7020;
+    border-radius: 11px; padding: 8px 4px 6px; text-align: center; cursor: pointer;
+    transition: transform 0.13s, box-shadow 0.13s, border-color 0.13s;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,0.4); border-color: #DAA520; }
+  .card.selected-card { border-color: #FFD700; box-shadow: 0 0 18px rgba(255,215,0,0.5); transform: translateY(-5px); background: linear-gradient(160deg,#FFF4D8,#F8E0B0); }
+  .card.locked { opacity: 0.38; pointer-events: none; }
+  .c-icon { font-size: 1.5rem; display: block; }
+  .c-lv { font-size: 0.5rem; color: #A07020; font-weight: bold; display: block; margin: 1px 0; }
+  .c-name { font-size: 0.58rem; color: #3A2210; font-weight: bold; margin: 2px 0 1px; display: block; }
+  .c-prod { font-size: 0.54rem; color: #2A6040; display: block; }
+  .c-cost { font-size: 0.54rem; color: #8B1A1A; margin-top: 1px; display: block; }
+  .c-compare { font-size: 0.46rem; color: #7A5020; display: block; margin-top: 2px; font-style: italic; }
+
+  /* ══ RESOURCE PANEL (near cards) ══ */
+  .res-panel {
+    width: 100%;
+    background: linear-gradient(135deg,#1e120a,#2d1e0e);
+    border: 2px solid #6B4A14; border-top-color: #4A7030;
+    border-radius: 0 0 12px 12px; padding: 8px 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+
+  .res-panel-title {
+    font-size: 0.6rem; color: #806030; text-align: center; margin-bottom: 6px; letter-spacing: 1px;
+  }
+
+  .res-grid {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 5px;
+  }
+
+  .res-item {
+    background: rgba(0,0,0,0.3); border: 1px solid #4A3218; border-radius: 8px;
+    padding: 5px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+
+  .res-icon { font-size: 1rem; line-height: 1; }
+  .res-label { font-size: 0.48rem; color: #8A6030; }
+  .res-now { font-size: 0.85rem; font-weight: bold; color: #E8D0A0; line-height: 1; }
+  .res-now.warn { color: #FF9944; }
+  .res-now.danger { color: #FF4444; animation: pulse 0.8s infinite; }
+
+  /* next-turn preview row */
+  .res-next { font-size: 0.52rem; color: #7A8C6A; margin-top: 1px; line-height: 1; }
+  .res-next.pos { color: #70C060; }
+  .res-next.neg { color: #E05030; }
+  .res-next.danger { color: #FF3020; font-weight: bold; animation: pulse 0.8s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+  /* ── How-to ── */
+  .tip-box {
+    background: rgba(0,0,0,0.45); border: 1px solid #5A3A14; border-radius: 10px;
+    padding: 8px 12px; color: #C0A060; font-size: 0.67rem; line-height: 1.85; width: 100%;
+  }
+  .tip-box strong { color: #FFD070; }
+
+  /* ── Overlay ── */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:none; align-items:center; justify-content:center; z-index:100; padding:24px; }
+  .overlay.show { display:flex; }
+  .overlay-box { background:linear-gradient(160deg,#F5E8C8,#E8D4A4); border:3px solid #9B7020; border-radius:18px; padding:28px 24px; text-align:center; max-width:300px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.7); animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes popIn { from{transform:scale(0.6);opacity:0}to{transform:scale(1);opacity:1} }
+  .overlay-box h2 { font-family:'Cinzel Decorative',serif; font-size:1.3rem; color:#3A2210; margin-bottom:10px; }
+  .overlay-box p { font-size:0.82rem; color:#5C3A20; margin-bottom:16px; line-height:1.6; }
+</style>
+</head>
+<body>
+<h1>⚔️ 王国パズル</h1>
+
+<div class="game-area">
+  <div class="top-row">
+    <div>ターン <span id="d-turn">0</span></div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="message" id="message">建物カードを選んで空きマスに配置しよう！</div>
+
+  <div class="controls">
+    <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
+    <button class="btn btn-demolish" id="btnDemolish" onclick="toggleDemolishMode()">🔨 解体</button>
+    <button class="btn btn-next" onclick="nextTurn()">次のターンへ →</button>
+  </div>
+
+  <!-- Stage Banner + Resource Panel -->
+  <div class="stage-banner" id="stageBanner">
+    <div class="sb-item"><span class="sb-label">あと何人</span><span class="sb-val" id="sb-need">-</span><span class="sb-sub" id="sb-pop">現在 -人</span></div>
+    <div class="sb-item"><span class="sb-label">残りターン</span><span class="sb-val" id="sb-turn">-</span><span class="sb-sub" id="sb-stage">- / ∞</span></div>
+  </div>
+  <div class="res-panel">
+    <div class="res-panel-title">── 資源 ─── 次ターン後 ──</div>
+    <div class="res-grid">
+      <div class="res-item">
+        <span class="res-icon">🪵</span>
+        <span class="res-label">木</span>
+        <span class="res-now" id="rn-wood">0</span>
+        <span class="res-next" id="rx-wood">→ 0</span>
+      </div>
+      <div class="res-item">
+        <span class="res-icon">🪨</span>
+        <span class="res-label">石</span>
+        <span class="res-now" id="rn-stone">0</span>
+        <span class="res-next" id="rx-stone">→ 0</span>
+      </div>
+      <div class="res-item">
+        <span class="res-icon">🥩</span>
+        <span class="res-label">肉</span>
+        <span class="res-now" id="rn-meat">0</span>
+        <span class="res-next" id="rx-meat">→ 0</span>
+      </div>
+      <div class="res-item">
+        <span class="res-icon">👥</span>
+        <span class="res-label">人口</span>
+        <span class="res-now" id="rn-pop">0</span>
+        <span class="res-next" id="rx-pop">消費-0/T</span>
+      </div>
+      <div class="res-item" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:4px 10px;">
+        <span style="font-size:1rem;">💰</span>
+        <span style="font-size:0.55rem;color:#8A6030;">金（合体コスト）</span>
+        <span class="res-now" id="rn-gold" style="font-size:1.1rem;">0</span>
+        <span class="res-next" id="rx-gold" style="font-size:0.55rem;color:#7A8C6A;">→ 0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards-section">
+    <div class="cards-label">▼ 建物を選んで配置（1ターン1つ）｜ Lv3以上は合体のみ入手</div>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <div class="tip-box">
+    <strong>遊び方</strong>　🏗 カード → 空きマスで配置　🔥 建物タップ → 隣の同種で合体<br>
+    📊 <strong>合体は面積↓ だが生産量も↓（Lv1×2 &gt; Lv2）</strong>　💀 肉切れで人口減少
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2 id="o-title"></h2><p id="o-msg"></p>
+    <button class="btn btn-next" id="o-btn" style="width:100%;font-size:0.95rem" onclick="restartGame()">もう一度挑戦！</button>
+  </div>
+</div>
+
+<script>
+// ── BUILDINGS ──
+const CHAINS = {
+  lumber:[
+    {id:'lumber_1',emoji:'🪵',name:'木こり小屋',prod:{wood:3}, cost:{wood:10},        lv:1},
+    {id:'lumber_2',emoji:'🏚️',name:'製材所',    prod:{wood:4}, cost:{wood:16,stone:2},lv:2},
+    {id:'lumber_3',emoji:'🌲',name:'林業小屋',  prod:{wood:6}, cost:{wood:40,stone:8,gold:5},   lv:3},
+    {id:'lumber_4',emoji:'🌳',name:'材木所',    prod:{wood:9}, cost:{wood:80,stone:16,gold:15}, lv:4},
+    {id:'lumber_5',emoji:'🏔️',name:'林業組合', prod:{wood:13},cost:{wood:160,stone:32,gold:40},lv:5},
+    {id:'lumber_6',emoji:'🌿',name:'大林業組合',prod:{wood:18},cost:{wood:320,stone:64,gold:100},lv:6},
+    {id:'lumber_7',emoji:'🌴',name:'王立林業',  prod:{wood:24},cost:{wood:640,stone:128,gold:250},lv:7},
+  ],
+  food:[
+    {id:'food_1',emoji:'🏹',name:'狩猟小屋',prod:{meat:4},  cost:{wood:8},         lv:1},
+    {id:'food_2',emoji:'🐄',name:'牧場',    prod:{meat:8},  cost:{wood:14,stone:2},lv:2},
+    {id:'food_3',emoji:'🌾',name:'農場',    prod:{meat:16}, cost:{wood:35,stone:8,gold:5},   lv:3},
+    {id:'food_4',emoji:'🐖',name:'大牧場',  prod:{meat:32}, cost:{wood:70,stone:16,gold:15}, lv:4},
+    {id:'food_5',emoji:'🌽',name:'食料基地',prod:{meat:64}, cost:{wood:140,stone:32,gold:40},lv:5},
+    {id:'food_6',emoji:'🍖',name:'王立農場',prod:{meat:128},cost:{wood:280,stone:64,gold:100},lv:6},
+    {id:'food_7',emoji:'🌻',name:'豊穣の地',prod:{meat:256},cost:{wood:560,stone:128,gold:250},lv:7},
+  ],
+  stone:[
+    {id:'stone_1',emoji:'⛏️',name:'採石場',  prod:{stone:3}, cost:{wood:12},        lv:1},
+    {id:'stone_2',emoji:'🪨',name:'石切り場',prod:{stone:5}, cost:{wood:18,stone:4},lv:2},
+    {id:'stone_3',emoji:'⚒️',name:'鉱山',   prod:{stone:7}, cost:{wood:45,stone:10,gold:5},  lv:3},
+    {id:'stone_4',emoji:'🏗️',name:'大鉱山', prod:{stone:10},cost:{wood:90,stone:20,gold:15}, lv:4},
+    {id:'stone_5',emoji:'🗿',name:'深部鉱山',prod:{stone:14},cost:{wood:180,stone:40,gold:40},lv:5},
+    {id:'stone_6',emoji:'💎',name:'王立採石場',prod:{stone:19},cost:{wood:360,stone:80,gold:100},lv:6},
+    {id:'stone_7',emoji:'🏔️',name:'地底鉱山',prod:{stone:26},cost:{wood:720,stone:160,gold:250},lv:7},
+  ],
+  house:[
+    {id:'house_1',emoji:'🏠',name:'小屋',    pop:4,  cost:{wood:8,stone:10},lv:1},
+    {id:'house_2',emoji:'🏘️',name:'長屋',    pop:8,  cost:{wood:12,stone:18},lv:2},
+    {id:'house_3',emoji:'🏡',name:'民家',    pop:16, cost:{wood:30,stone:45,gold:5},  lv:3},
+    {id:'house_4',emoji:'🏢',name:'集合住宅',pop:32, cost:{wood:60,stone:90,gold:15}, lv:4},
+    {id:'house_5',emoji:'🏣',name:'大型住宅',pop:64, cost:{wood:120,stone:180,gold:40},lv:5},
+    {id:'house_6',emoji:'🏯',name:'城下町',  pop:128,cost:{wood:240,stone:360,gold:100},lv:6},
+    {id:'house_7',emoji:'👑',name:'王城',    pop:256,cost:{wood:480,stone:720,gold:250},lv:7},
+  ],
+  market:[
+    {id:'market_1',emoji:'🏪',name:'露店',      prod:{gold:3}, cost:{wood:10,stone:4}, lv:1},
+    {id:'market_2',emoji:'🏬',name:'商店',      prod:{gold:6}, cost:{wood:16,stone:8}, lv:2},
+    {id:'market_3',emoji:'🏦',name:'市場',      prod:{gold:10}, cost:{wood:40,stone:12,gold:5},  lv:3},
+    {id:'market_4',emoji:'💰',name:'大市場',    prod:{gold:16}, cost:{wood:80,stone:24,gold:15}, lv:4},
+    {id:'market_5',emoji:'🏛️',name:'交易所',   prod:{gold:25}, cost:{wood:160,stone:48,gold:40},lv:5},
+    {id:'market_6',emoji:'👑',name:'王立市場',  prod:{gold:38}, cost:{wood:320,stone:96,gold:100},lv:6},
+    {id:'market_7',emoji:'💎',name:'帝国交易所',prod:{gold:57}, cost:{wood:640,stone:192,gold:250},lv:7},
+  ],
+};
+
+// 合体コスト（Lv N→N+1 に必要な金）Lv1→2は無料
+const MERGE_GOLD_COST = [3, 9, 21, 45, 90, 165, 300]; // Lv1→2: 3, Lv2→3: 9, ...
+const DEMOLISH_GOLD_COST = [2, 5, 12, 25, 50, 100, 200]; // Lv1:2, Lv2:5, ...
+function demolishCost(lv){ return DEMOLISH_GOLD_COST[lv-1]||2; }
+function mergeCost(lv){ return MERGE_GOLD_COST[lv-1]||0; }
+const B = {};
+Object.entries(CHAINS).forEach(([type,arr])=>{
+  arr.forEach((b,i)=>{ b.type=type; b.next=arr[i+1]?arr[i+1].id:null; B[b.id]=b; });
+});
+
+// 無限ステージ関数
+// byTurn: 15 × 2^n → 15, 30, 60, 120, 240, 480...（倍々で余裕が増える）
+// target: 期待値の80%水準
+const STAGE_TARGETS = [10, 25, 90, 200, 600, 1200, 3500];
+const STAGE_BYTURNS = [15, 30, 60, 120, 240, 480, 960];
+function getStage(n){
+  const target  = n < STAGE_TARGETS.length
+    ? STAGE_TARGETS[n]
+    : Math.round(STAGE_TARGETS[STAGE_TARGETS.length-1] * Math.pow(3, n - STAGE_TARGETS.length + 1));
+  const byTurn  = n < STAGE_BYTURNS.length
+    ? STAGE_BYTURNS[n]
+    : STAGE_BYTURNS[STAGE_BYTURNS.length-1] * Math.pow(2, n - STAGE_BYTURNS.length + 1);
+  return { target, byTurn: Math.round(byTurn), label: `第${n+1}段階` };
+}
+
+let S={};
+
+function initState(){
+  S={
+    grid:Array(5).fill(null).map(()=>Array(5).fill(null)),
+    res:{wood:30,stone:10,meat:25,gold:0}, pop:0,
+    turn:0,stage:0,offered:[],
+    selCard:null,selCell:null,placed:false,phase:'idle',
+    msg:'建物カードを選んで空きマスに配置しよう！',
+    gameOver:false,gameWon:false,demolishMode:false,
+  };
+  S.offered=makeOffer();
+}
+
+function makeOffer(){
+  // 各Lvの解放・フェードアウト・消滅ステージ（index=lv-1）
+  const UNLOCK     = [0,  0,  3,  5,  7,  9, 11];
+  const FADE_START = [3,  5,  7,  9, 11, 13, 15];
+  const DISAPPEAR  = [5,  7,  9, 11, 13, 15, 17];
+  const types = ['lumber','food','stone','house','market'];
+
+  function lvWeight(lv){
+    const i=lv-1, s=S.stage;
+    if(s < UNLOCK[i] || s >= DISAPPEAR[i]) return 0;
+    if(s >= FADE_START[i]){
+      const fadeLen = DISAPPEAR[i] - FADE_START[i];
+      const elapsed = s - FADE_START[i];
+      return Math.max(1, 4 - Math.floor(elapsed * 3 / fadeLen + 1));
+    }
+    return 4;
+  }
+
+  const pool = [];
+  for(let lv=1; lv<=7; lv++){
+    const w = lvWeight(lv);
+    if(w === 0) continue;
+    types.forEach(type=>{
+      const b = CHAINS[type][lv-1];
+      if(b) for(let i=0;i<w;i++) pool.push(b.id);
+    });
+  }
+
+  pool.sort(()=>Math.random()-0.5);
+  const result=[];const used=new Set();
+  for(const id of pool){
+    const t=B[id].type;
+    if(!used.has(t)){used.add(t);result.push(id);}
+    if(result.length===3)break;
+  }
+  // fallback: 出現可能な最低Lvを補完
+  if(result.length < 3){
+    for(let lv=1; lv<=7 && result.length<3; lv++){
+      if(lvWeight(lv)>0){
+        types.forEach(type=>{
+          if(result.length<3 && !result.some(id=>B[id].type===type)){
+            const b=CHAINS[type][lv-1];
+            if(b) result.push(b.id);
+          }
+        });
+      }
+    }
+  }
+  return result;
+}
+
+function calcPop(){
+  let p=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const bid=S.grid[r][c];
+    if(bid&&B[bid].type==='house') p+=B[bid].pop;
+  }
+  return Math.max(0,p);
+}
+function meatCost(){ return Math.max(1,Math.ceil(calcPop()/3)); }
+
+// Compute next-turn production
+function calcNextTurn(){
+  let wp=0,sp=0,mp=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const bid=S.grid[r][c];if(!bid)continue;const b=B[bid];
+    if(b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
+  }
+  const consume=meatCost(); // calcPop()ベース
+  let gp=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  return {
+    wood:  S.res.wood+wp,
+    stone: S.res.stone+sp,
+    meat:  S.res.meat+mp-consume,
+    gold:  S.res.gold+gp,
+    pop:   S.pop,
+    prodW:wp,prodS:sp,prodM:mp,prodG:gp,consume,
+  };
+}
+
+function render(){ renderGrid();renderCards();renderInfo();renderResPanel();document.getElementById('message').textContent=S.msg; }
+
+function renderResPanel(){
+  const nx=calcNextTurn();
+  const consume=meatCost();
+  const meatNext=nx.meat;
+
+  // current values + warning
+  const keys=['wood','stone','meat'];
+  // gold handled separately below
+  keys.forEach(k=>{
+    const cur=S.res[k];
+    const el=document.getElementById('rn-'+k);
+    el.textContent=cur;
+    el.className='res-now'+(k==='meat'&&meatNext<0?' danger':k==='meat'&&meatNext<consume?' warn':'');
+  });
+  document.getElementById('rn-pop').textContent=S.pop;
+  document.getElementById('rn-pop').className='res-now';
+
+  // gold
+  let goldProd=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
+  const goldNext=S.res.gold+goldProd;
+  document.getElementById('rn-gold').textContent=S.res.gold;
+  const gEl=document.getElementById('rx-gold');
+  gEl.textContent=`→ ${goldNext}（+${goldProd}/T）`;
+  gEl.className='res-next'+(goldProd>0?' pos':'');
+
+  // next-turn preview
+  const setNx=(key,cur,nxt)=>{
+    const el=document.getElementById('rx-'+key);
+    const diff=nxt-cur;
+    const sign=diff>=0?'+':'';
+    el.textContent=`→ ${nxt}（${sign}${diff}）`;
+    el.className='res-next'+(nxt<0?' danger':diff>0?' pos':diff<0?' neg':'');
+  };
+  setNx('wood', S.res.wood, nx.wood);
+  setNx('stone',S.res.stone,nx.stone);
+  setNx('meat', S.res.meat, meatNext);
+
+  // pop: just show consumption
+  const popEl=document.getElementById('rx-pop');
+  popEl.textContent=`消費 -${consume}/T（人口÷3）`;
+  popEl.className='res-next'+(meatNext<0?' danger':meatNext<consume*2?' neg':'');
+}
+
+function renderGrid(){
+  const g=document.getElementById('grid');g.innerHTML='';
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const bid=S.grid[r][c];
+    const div=document.createElement('div');
+    div.className='cell'+(bid?'':' empty');
+    if(bid){
+      const b=B[bid];div.setAttribute('data-lv',b.lv);
+      const isSel=S.selCell&&S.selCell.r===r&&S.selCell.c===c;
+      const isMT=!isSel&&isMergeTarget(r,c);
+      if(S.phase==='demolish') div.classList.add('demolish-target');
+      const prodStr=b.prod?Object.entries(b.prod).map(([k,v])=>ri(k)+v).join(' '):(b.type==='house'?`👥${b.pop}人`:'');
+      div.innerHTML=`<div class="b-lvl">Lv${b.lv}</div><div class="b-icon">${b.emoji}</div><div class="b-name">${b.name}</div><div class="b-prod">${prodStr}</div>`;
+      // 合体選択中：選択セルは赤、合体候補はすべて緑（phaseを問わず selCell があれば表示）
+      if(isSel && S.selCell){
+        div.classList.add('merge-delete');
+        const lbl=document.createElement('div');
+        lbl.className='merge-label del';lbl.textContent='✕ 消える';
+        div.appendChild(lbl);
+      } else if(isMT && S.selCell){
+        div.classList.add('merge-keep');
+        const lbl=document.createElement('div');
+        lbl.className='merge-label keep';lbl.textContent='★ 残る';
+        div.appendChild(lbl);
+      } else if(isSel){
+        div.classList.add('selected');
+      }
+    } else {
+      if(S.phase==='placing')div.classList.add('can-place');
+    }
+    div.addEventListener('click',()=>onCell(r,c));
+    g.appendChild(div);
+  }
+}
+
+function isMergeTarget(r,c){
+  if(!S.selCell)return false;
+  const{r:sr,c:sc}=S.selCell;
+  const src=S.grid[sr][sc],tgt=S.grid[r][c];
+  if(!src||!tgt||src!==tgt||!B[src].next)return false;
+  return Math.abs(r-sr)+Math.abs(c-sc)===1;
+}
+
+function ri(k){return{wood:'🪵',stone:'🪨',meat:'🥩',gold:'💰'}[k]||k;}
+
+function renderCards(){
+  const el=document.getElementById('cards');el.innerHTML='';
+  S.offered.forEach((bid,i)=>{
+    const b=B[bid];const ok=canAfford(bid);
+    const div=document.createElement('div');
+    div.className='card'+(S.selCard===i?' selected-card':'')+(ok?'':' locked');
+    const costStr=b.cost?Object.entries(b.cost).map(([k,v])=>`${ri(k)}${v}`).join(' '):'合体のみ';
+    const prodStr=b.prod?Object.entries(b.prod).map(([k,v])=>`${ri(k)}+${v}/T`).join(' '):(b.type==='house'?`👥${b.pop}人が住む`:'');
+    let cmp='';
+    if(b.lv>=2&&b.prod){
+      const prev=CHAINS[b.type][b.lv-2];
+      if(prev&&prev.prod){const k=Object.keys(b.prod)[0];cmp=`Lv${b.lv-1}×2=${(prev.prod[k]||0)*2} > Lv${b.lv}=${b.prod[k]||0}`;}
+    }
+    div.innerHTML=`<span class="c-icon">${b.emoji}</span><span class="c-lv">Lv${b.lv}</span><span class="c-name">${b.name}</span><span class="c-prod">${prodStr}</span><span class="c-cost">🔨 ${costStr}</span>${cmp?`<span class="c-compare">${cmp}</span>`:''}`;
+    div.addEventListener('click',()=>onCard(i));
+    el.appendChild(div);
+  });
+}
+
+function renderInfo(){
+  document.getElementById('d-turn').textContent=S.turn;
+  const s=getStage(S.stage);
+  const left=s.byTurn-S.turn;
+  const UNLOCK_D=[5,7,9,11,13,15,17];
+  const minLvNow=UNLOCK_D.findIndex(d=>S.stage<d)+1||7;
+  const UNLOCK_T=[0,0,3,5,7,9,11];
+  const maxLvNow=UNLOCK_T.reduce((acc,s,i)=>S.stage>=s?i+1:acc,1);
+  const need=Math.max(0,s.target-S.pop);
+  const turnWarnClass=left<=3?'danger':left<=6?'warn':'';
+  const needWarnClass=need===0?'good':left>0&&need/left>8?'danger':left>0&&need/left>4?'warn':'';
+  document.getElementById('sb-need').textContent=need===0?'達成！':'+'+need+'人';
+  document.getElementById('sb-need').className='sb-val '+(need===0?'good':needWarnClass);
+  document.getElementById('sb-pop').textContent=`現在${S.pop}人 / 目標${s.target}人`;
+  document.getElementById('sb-turn').textContent=left+'T';
+  document.getElementById('sb-turn').className='sb-val '+turnWarnClass;
+  document.getElementById('sb-stage').textContent=`${s.label} ｜ カードLv${minLvNow===maxLvNow?maxLvNow:minLvNow+'〜'+maxLvNow}`;
+}
+
+function onCard(i){
+  if(S.placed){S.msg='このターンはすでに配置しました！次のターンへ！';render();return;}
+  const bid=S.offered[i];
+  if(!canAfford(bid)){const b=B[bid];S.msg='資源不足！必要: '+Object.entries(b.cost||{}).map(([k,v])=>ri(k)+v).join(' ');render();return;}
+  if(S.selCard===i){S.selCard=null;S.phase='idle';S.msg='建物カードを選んで配置しよう！';}
+  else{S.selCard=i;S.selCell=null;S.phase='placing';S.msg=`${B[bid].emoji} ${B[bid].name}を置く場所をタップ！`;}
+  render();
+}
+
+function mergeSelectMsg(b){
+  const nb=B[b.next];let info='';
+  if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];info=`（合体後${nb.prod[k]}/T, 現在2枚${(b.prod[k]||0)*2}/T）`;}
+  const mc=mergeCost(b.lv);
+  const mcStr=mc>0?`💰${mc}必要`:'コスト無料';
+  return `🔴 ステップ1完了：「消える」建物を選択。▶ ステップ2：残したい隣の同種建物をタップ → 合体！${info}[${mcStr}]　やめる→キャンセル`;
+}
+
+function onCell(r,c){
+  const bid=S.grid[r][c];
+
+  // ── 解体モード ──
+  if(S.phase==='demolish'){
+    if(!bid){S.msg='🔨 解体したい建物をタップしてください。';render();return;}
+    doDemolish(r,c);return;
+  }
+
+  // ── 配置モード ──
+  if(S.phase==='placing'&&S.selCard!==null){
+    if(bid){S.msg='そこには建物があります！';render();return;}
+    doPlace(r,c);return;
+  }
+
+  if(bid){
+    const b=B[bid];
+    const isSel=S.selCell&&S.selCell.r===r&&S.selCell.c===c;
+
+    // ── 合体モード中に「残る」側をタップ → 合体実行 ──
+    if(S.phase==='merge_select'&&!isSel&&isMergeTarget(r,c)){
+      doMerge(S.selCell.r,S.selCell.c,r,c);return;
+    }
+
+    // ── 選択済みを再タップ → 選択解除 ──
+    if(isSel){
+      S.selCell=null;
+      S.phase='idle';
+      S.msg='🔄 選択解除。合体したい建物をタップしてください。';
+      render();return;
+    }
+
+    // ── 建物タップ → 「消える」側として選択 ──
+    // （合体モード中に別建物をタップしても選択切替）
+    S.selCard=null;
+    S.selCell={r,c};
+    if(b.next){
+      S.phase='merge_select';
+      const hasMN = mergeableNeighbor(r,c)!==null;
+      S.msg = hasMN
+        ? mergeSelectMsg(b)
+        : `🔴 ${b.emoji}「${b.name}」を選択中。隣に同じ建物がないため合体不可。別の建物をタップか、キャンセルで解除。`;
+    } else {
+      S.phase='idle';
+      S.selCell=null;
+      S.msg=`${b.emoji} ${b.name}は最高Lv！合体できません。`;
+    }
+
+  } else {
+    // 空マスタップ
+    if(S.phase==='merge_select'||S.selCell){
+      S.selCell=null;S.phase='idle';
+      S.msg='🔄 選択解除。合体したい建物をタップしてください。';
+    } else {
+      S.msg='建物カードを選んで配置しよう！';
+    }
+  }
+  render();
+}
+
+function doPlace(r,c){
+  const bid=S.offered[S.selCard];const b=B[bid];
+  Object.entries(b.cost||{}).forEach(([k,v])=>S.res[k]-=v);
+  S.grid[r][c]=bid;
+  S.pop=calcPop(); // 住居配置後に再計算
+  S.placed=true;S.selCard=null;S.phase='idle';
+  const mg=mergeableNeighbor(r,c);
+  if(mg){S.selCell={r,c};S.phase='merge_select';S.msg=`✅ 配置完了！隣に合体できる建物があります。合体する → 残したい方をタップ　 合体しない → キャンセルボタン or 次のターンへ`;}
+  else{S.msg=`✅ ${b.emoji} ${b.name}を配置！`;}
+  render();
+}
+
+function doMerge(r1,c1,r2,c2){
+  const bid=S.grid[r1][c1];const b=B[bid];const nid=b.next;const nb=B[nid];
+  // 金コストチェック
+  const cost=mergeCost(b.lv);
+  if(cost>0&&S.res.gold<cost){
+    S.msg=`💰 金が足りない！Lv${b.lv}→${b.lv+1}の合体には 💰${cost} 必要（現在${S.res.gold}）`;
+    render();return;
+  }
+  if(cost>0) S.res.gold-=cost;
+  S.grid[r2][c2]=nid;S.grid[r1][c1]=null;S.selCell=null;S.phase='idle';
+  S.pop=calcPop(); // 合体後に再計算
+  let diff='';
+  if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];const was=(b.prod[k]||0)*2;const now=nb.prod[k]||0;diff=` 生産:${was}→${now}/T（-${was-now}）`;}
+  const costStr=cost>0?` 💰-${cost}`:'';
+  const mg=mergeableNeighbor(r2,c2);
+  S.msg=`🔥 合体！${b.emoji}×2→${nb.emoji}${nb.name}！${diff}${costStr}`;
+  if(mg){S.selCell={r:r2,c:c2};S.phase='merge_select';}
+  render();
+}
+
+function mergeableNeighbor(r,c){
+  const bid=S.grid[r][c];if(!bid||!B[bid].next)return null;
+  for(const[dr,dc]of[[0,1],[0,-1],[1,0],[-1,0]]){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<5&&nc>=0&&nc<5&&S.grid[nr][nc]===bid)return{r:nr,c:nc};}
+  return null;
+}
+
+function canAfford(bid){
+  const b=B[bid];if(!b.cost)return false;
+  return Object.entries(b.cost).every(([k,v])=>(S.res[k]||0)>=v);
+}
+
+function toggleDemolishMode(){
+  S.demolishMode = !S.demolishMode;
+  S.selCard=null;S.selCell=null;S.phase=S.demolishMode?'demolish':'idle';
+  document.getElementById('btnDemolish').classList.toggle('active', S.demolishMode);
+  S.msg = S.demolishMode
+    ? '🔨 解体モード：撤去したい建物をタップ（金が必要）'
+    : '建物カードを選んで配置しよう！';
+  render();
+}
+
+function doDemolish(r,c){
+  const bid=S.grid[r][c];if(!bid)return;
+  const b=B[bid];
+  const cost=demolishCost(b.lv);
+  if(S.res.gold<cost){
+    S.msg=`💰 金が足りない！解体には💰${cost}必要（現在${S.res.gold}）`;
+    render();return;
+  }
+  S.res.gold-=cost;
+  S.grid[r][c]=null;
+  // Remove production
+  S.pop=calcPop();
+  S.msg=`🔨 ${b.emoji}${b.name}を解体（💰-${cost}）`;
+  render();
+}
+
+function cancelAction(){
+  const wasMerge = S.phase==='merge_select';
+  S.demolishMode=false;
+  document.getElementById('btnDemolish').classList.remove('active');
+  S.selCard=null;S.selCell=null;S.phase='idle';
+  S.msg = wasMerge ? '合体をキャンセルしました。次のターンへ進むか、別の操作をどうぞ。' : '建物カードを選んで配置しよう！';
+  render();
+}
+
+function nextTurn(){
+  if(S.gameOver||S.gameWon)return;
+  S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
+  S.pop=calcPop();
+  let wp=0,sp=0,mp=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const bid=S.grid[r][c];if(!bid)continue;const b=B[bid];
+    if(b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
+  }
+  let gp=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  S.res.wood+=wp;S.res.stone+=sp;S.res.meat+=mp;S.res.gold+=gp;
+  const consume=meatCost();S.res.meat-=consume;
+  if(S.res.meat<0){
+    const loss=Math.max(1,Math.ceil(Math.abs(S.res.meat)));
+    S.pop=Math.max(0,S.pop-loss);S.res.meat=0;
+    if(S.pop<=0){S.gameOver=true;showOverlay('💀 ゲームオーバー',`ターン${S.turn}：食料が尽き人口が0になりました。`);return;}
+  }
+  const st=getStage(S.stage);
+  if(S.turn>=st.byTurn&&S.pop<st.target){S.gameOver=true;showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);return;}
+  if(S.pop>=st.target){
+    // 早期達成ボーナス: 残りターン × 係数（ステージが進むほど係数が上がる）
+    const leftTurns = st.byTurn - S.turn;
+    const mult = 1 + S.stage; // stage0→×1, stage1→×2...
+    const bonusW = leftTurns * mult * 2;
+    const bonusS = leftTurns * mult * 1;
+    const bonusM = leftTurns * mult * 2;
+    const bonusG = leftTurns * mult * 1;
+    S.res.wood  += bonusW;
+    S.res.stone += bonusS;
+    S.res.meat  += bonusM;
+    S.res.gold  += bonusG;
+    S.stage++;
+    // 無限ステージなのでゲームオーバーなし
+    const ns=getStage(S.stage);
+    const bonusMsg = leftTurns>0
+      ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
+      : 'ギリギリクリア！ボーナスなし';
+    showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
+    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
+    return; // renderはoverlay閉じるときに呼ばれる
+  } else {
+    S.msg=`T${S.turn}完了 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume} ｜残り${st.byTurn-S.turn}T`;
+  }
+  S.offered=makeOffer();render();
+}
+
+function showBonus(bonusMsg, nextMsg){
+  document.getElementById('o-title').textContent='🎉 ステージクリア！';
+  document.getElementById('o-msg').innerHTML = bonusMsg + '<br><br>' + nextMsg;
+  document.getElementById('o-btn').textContent = '次のステージへ！';
+  document.getElementById('overlay').classList.add('show');
+  // override restart to just close
+  document.getElementById('o-btn').onclick = ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    S.offered=makeOffer();render();
+  };
+}
+
+function showOverlay(title,msg){document.getElementById('o-title').textContent=title;document.getElementById('o-msg').textContent=msg;document.getElementById('overlay').classList.add('show');}
+function restartGame(){document.getElementById('overlay').classList.remove('show');initState();render();}
+
+initState();render();
+</script>
+</body>
+</html>
