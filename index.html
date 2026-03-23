@@ -215,6 +215,38 @@
   .tut-btns button { flex:1; padding:10px; border:2px solid; border-radius:8px; font-family:'Noto Serif JP',serif; font-size:0.82rem; font-weight:bold; cursor:pointer; }
   .tut-skip { background:linear-gradient(135deg,#2a1a0e,#3d2b1a); border-color:#5A3A14; color:#C0A060; }
   .tut-next { background:linear-gradient(135deg,#9B7918,#DAA520); border-color:#FFD060; color:#1a0e06; }
+
+  /* ── Rock Cell ── */
+  .cell.rock {
+    background: linear-gradient(145deg,#4A4A4A,#3A3A3A) !important;
+    border: 2px solid #5A5A5A; cursor: default;
+  }
+  .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
+  .cell.rock .rock-label { font-size:0.4rem; color:#888; margin-top:2px; }
+
+  /* ── Turn Banner ── */
+  .turn-banner {
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.7); z-index:150; pointer-events:none;
+    animation: bannerFade 1s ease-out forwards;
+  }
+  .turn-banner .tb-turn {
+    font-family:'Cinzel Decorative',serif; font-size:2.2rem; color:#DAA520;
+    text-shadow:0 0 30px rgba(218,165,32,0.7); letter-spacing:3px;
+  }
+  .turn-banner .tb-event {
+    font-size:1rem; color:#F0DCA0; margin-top:8px; text-align:center;
+    max-width:300px; line-height:1.5;
+  }
+  @keyframes bannerFade {
+    0%{opacity:0;transform:scale(0.8)} 15%{opacity:1;transform:scale(1)}
+    70%{opacity:1} 100%{opacity:0;transform:scale(1.05)}
+  }
+
+  /* ── Event flash on message bar ── */
+  .message.event-good { border-color:#4A7030; background:rgba(10,40,10,0.75); color:#90E070; }
+  .message.event-bad  { border-color:#7A3020; background:rgba(40,10,10,0.75); color:#FF9070; }
 </style>
 </head>
 <body>
@@ -289,6 +321,8 @@
     📊 <strong>合体は面積↓ だが生産量も↓（Lv1×2 &gt; Lv2）</strong>　💀 肉切れで人口減少
   </div>
 </div>
+
+<div id="turnBanner" style="display:none;"></div>
 
 <div class="tut-overlay" id="tutorial" style="display:none;">
   <div class="tut-box">
@@ -395,8 +429,30 @@ function initState(){
     selCard:null,selCell:null,placed:false,phase:'idle',
     msg:'建物カードを選んで空きマスに配置しよう！',
     gameOver:false,gameWon:false,demolishMode:false,
+    lastEvent:null,
   };
+  placeRocks(rockCount(0));
   S.offered=makeOffer();
+}
+
+function rockCount(stage){ return Math.min(4, 1 + stage); }
+
+function placeRocks(count){
+  // 空きマスを収集してシャッフル
+  const empties=[];
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    if(!S.grid[r][c]) empties.push({r,c});
+  }
+  empties.sort(()=>Math.random()-0.5);
+  for(let i=0;i<Math.min(count,empties.length);i++){
+    S.grid[empties[i].r][empties[i].c]='rock';
+  }
+}
+
+function clearRocks(){
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    if(S.grid[r][c]==='rock') S.grid[r][c]=null;
+  }
 }
 
 function makeOffer(){
@@ -454,7 +510,7 @@ function calcPop(){
   let p=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
-    if(bid&&B[bid].type==='house') p+=B[bid].pop;
+    if(bid&&bid!=='rock'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
   }
   return Math.max(0,p);
 }
@@ -464,12 +520,12 @@ function meatCost(){ return Math.max(1,Math.ceil(calcPop()/3)); }
 function calcNextTurn(){
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const bid=S.grid[r][c];if(!bid)continue;const b=B[bid];
-    if(b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
+    const bid=S.grid[r][c];if(!bid||bid==='rock')continue;const b=B[bid];
+    if(b&&b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
   }
   const consume=meatCost(); // calcPop()ベース
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   return {
     wood:  S.res.wood+wp,
     stone: S.res.stone+sp,
@@ -501,7 +557,7 @@ function renderResPanel(){
 
   // gold
   let goldProd=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
   const goldNext=S.res.gold+goldProd;
   document.getElementById('rn-gold').textContent=S.res.gold;
   const gEl=document.getElementById('rx-gold');
@@ -531,6 +587,12 @@ function renderGrid(){
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
     const div=document.createElement('div');
+    // 岩セル
+    if(bid==='rock'){
+      div.className='cell rock';
+      div.innerHTML='<div class="rock-icon">🪨</div><div class="rock-label">岩</div>';
+      g.appendChild(div);continue;
+    }
     div.className='cell'+(bid?'':' empty');
     if(bid){
       const b=B[bid];div.setAttribute('data-lv',b.lv);
@@ -629,6 +691,9 @@ function mergeSelectMsg(b){
 function onCell(r,c){
   const bid=S.grid[r][c];
 
+  // ── 岩セルは無視 ──
+  if(bid==='rock') return;
+
   // ── 解体モード ──
   if(S.phase==='demolish'){
     if(!bid){S.msg='🔨 解体したい建物をタップしてください。';render();return;}
@@ -637,7 +702,7 @@ function onCell(r,c){
 
   // ── 配置モード ──
   if(S.phase==='placing'&&S.selCard!==null){
-    if(bid){S.msg='そこには建物があります！';render();return;}
+    if(bid){S.msg='そこには配置できません！';render();return;}
     doPlace(r,c);return;
   }
 
@@ -774,19 +839,80 @@ function cancelAction(){
   render();
 }
 
+// ── RANDOM EVENTS ──
+const EVENTS_GOOD = [
+  { icon:'🎁', name:'旅商人', msg:'旅商人が資材を持ってきた！', apply:()=>{ S.res.wood+=15; return '🪵+15'; }},
+  { icon:'🌾', name:'豊作', msg:'今季は豊作だ！', apply:()=>{ S.res.meat+=12; return '🥩+12'; }},
+  { icon:'⛏️', name:'鉱脈発見', msg:'新たな鉱脈が見つかった！', apply:()=>{ S.res.stone+=10; return '🪨+10'; }},
+  { icon:'💰', name:'徴税', msg:'民からの税収が入った！', apply:()=>{ S.res.gold+=5; return '💰+5'; }},
+];
+const EVENTS_BAD = [
+  { icon:'🏴', name:'山賊襲来', msg:'山賊に資材を奪われた！', apply:()=>{ S.res.wood=Math.max(0,S.res.wood-12); return '🪵-12'; }},
+  { icon:'🦠', name:'疫病', msg:'疫病が広がった…', apply:()=>{
+    // 住居系の人口を直接減らすのではなく、肉を減らして間接的に影響
+    S.res.meat=Math.max(0,S.res.meat-8); return '🥩-8';
+  }},
+  { icon:'🌪️', name:'嵐', msg:'激しい嵐で石材が失われた！', apply:()=>{ S.res.stone=Math.max(0,S.res.stone-8); return '🪨-8'; }},
+  { icon:'🪨', name:'落石', msg:'落石でマスが塞がれた！', apply:()=>{
+    const empties=[];
+    for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
+    if(empties.length>0){
+      const p=empties[Math.floor(Math.random()*empties.length)];
+      S.grid[p.r][p.c]='rock';
+      return '岩+1';
+    }
+    return '(空きなし)';
+  }},
+];
+
+function triggerEvent(){
+  // ターン1〜3はイベントなし
+  if(S.turn<=3) return null;
+  // 発生確率: 20% + ステージ×3%（最大35%）
+  const chance = 0.20 + Math.min(0.15, S.stage * 0.03);
+  if(Math.random() > chance) return null;
+  // 良い/悪い 50:50
+  const pool = Math.random()<0.5 ? EVENTS_GOOD : EVENTS_BAD;
+  const ev = pool[Math.floor(Math.random()*pool.length)];
+  const detail = ev.apply();
+  return { icon:ev.icon, name:ev.name, msg:ev.msg, detail, good:pool===EVENTS_GOOD };
+}
+
+// ── TURN BANNER ──
+function showTurnBanner(turnNum, eventInfo){
+  const el=document.getElementById('turnBanner');
+  el.className='turn-banner';
+  let html=`<div class="tb-turn">⚔ ターン ${turnNum}</div>`;
+  if(eventInfo){
+    html+=`<div class="tb-event">${eventInfo.icon} ${eventInfo.msg}（${eventInfo.detail}）</div>`;
+  }
+  el.innerHTML=html;
+  el.style.display='flex';
+  // アニメーション終了後に非表示
+  el.onanimationend=()=>{ el.style.display='none'; };
+}
+
 function nextTurn(){
   if(S.gameOver||S.gameWon)return;
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
   S.pop=calcPop();
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const bid=S.grid[r][c];if(!bid)continue;const b=B[bid];
-    if(b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
+    const bid=S.grid[r][c];if(!bid||bid==='rock')continue;const b=B[bid];
+    if(b&&b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
   }
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   S.res.wood+=wp;S.res.stone+=sp;S.res.meat+=mp;S.res.gold+=gp;
   const consume=meatCost();S.res.meat-=consume;
+
+  // ランダムイベント
+  const ev=triggerEvent();
+  S.lastEvent=ev;
+
+  // ターンバナー表示
+  showTurnBanner(S.turn, ev);
+
   if(S.res.meat<0){
     const loss=Math.max(1,Math.ceil(Math.abs(S.res.meat)));
     S.pop=Math.max(0,S.pop-loss);S.res.meat=0;
@@ -795,9 +921,8 @@ function nextTurn(){
   const st=getStage(S.stage);
   if(S.turn>=st.byTurn&&S.pop<st.target){S.gameOver=true;showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);return;}
   if(S.pop>=st.target){
-    // 早期達成ボーナス: 残りターン × 係数（ステージが進むほど係数が上がる）
     const leftTurns = st.byTurn - S.turn;
-    const mult = 1 + S.stage; // stage0→×1, stage1→×2...
+    const mult = 1 + S.stage;
     const bonusW = leftTurns * mult * 2;
     const bonusS = leftTurns * mult * 1;
     const bonusM = leftTurns * mult * 2;
@@ -806,19 +931,29 @@ function nextTurn(){
     S.res.stone += bonusS;
     S.res.meat  += bonusM;
     S.res.gold  += bonusG;
+    // 岩リセット＆再配置
+    clearRocks();
     S.stage++;
-    // 無限ステージなのでゲームオーバーなし
+    placeRocks(rockCount(S.stage));
     const ns=getStage(S.stage);
     const bonusMsg = leftTurns>0
       ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
       : 'ギリギリクリア！ボーナスなし';
     showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
     S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
-    return; // renderはoverlay閉じるときに呼ばれる
+    return;
   } else {
-    S.msg=`T${S.turn}完了 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume} ｜残り${st.byTurn-S.turn}T`;
+    let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
+    S.msg=`T${S.turn}完了 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${evMsg} ｜残り${st.byTurn-S.turn}T`;
   }
   S.offered=makeOffer();render();
+
+  // イベントでメッセージバーに色付け
+  if(ev){
+    const msgEl=document.getElementById('message');
+    msgEl.classList.add(ev.good?'event-good':'event-bad');
+    setTimeout(()=>{ msgEl.classList.remove('event-good','event-bad'); }, 2000);
+  }
 }
 
 function showBonus(bonusMsg, nextMsg){
