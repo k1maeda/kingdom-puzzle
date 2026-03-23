@@ -201,6 +201,20 @@
   @keyframes popIn { from{transform:scale(0.6);opacity:0}to{transform:scale(1);opacity:1} }
   .overlay-box h2 { font-family:'Cinzel Decorative',serif; font-size:1.3rem; color:#3A2210; margin-bottom:10px; }
   .overlay-box p { font-size:0.82rem; color:#5C3A20; margin-bottom:16px; line-height:1.6; }
+
+  /* ── Tutorial ── */
+  .tut-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:flex; align-items:center; justify-content:center; z-index:200; padding:24px; }
+  .tut-box { background:linear-gradient(160deg,#F5E8C8,#E8D4A4); border:3px solid #9B7020; border-radius:18px; padding:28px 24px; text-align:center; max-width:340px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.7); animation:popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .tut-box h2 { font-family:'Cinzel Decorative',serif; font-size:1.2rem; color:#3A2210; margin-bottom:12px; }
+  .tut-icon { font-size:2.5rem; margin-bottom:8px; display:block; }
+  .tut-text { font-size:0.82rem; color:#5C3A20; line-height:1.7; margin-bottom:18px; }
+  .tut-steps { display:flex; gap:6px; justify-content:center; margin-bottom:14px; }
+  .tut-dot { width:10px; height:10px; border-radius:50%; background:#C0A070; border:1px solid #8A6030; transition:background 0.2s; }
+  .tut-dot.active { background:#DAA520; border-color:#FFD060; box-shadow:0 0 6px rgba(218,165,32,0.5); }
+  .tut-btns { display:flex; gap:10px; }
+  .tut-btns button { flex:1; padding:10px; border:2px solid; border-radius:8px; font-family:'Noto Serif JP',serif; font-size:0.82rem; font-weight:bold; cursor:pointer; }
+  .tut-skip { background:linear-gradient(135deg,#2a1a0e,#3d2b1a); border-color:#5A3A14; color:#C0A060; }
+  .tut-next { background:linear-gradient(135deg,#9B7918,#DAA520); border-color:#FFD060; color:#1a0e06; }
 </style>
 </head>
 <body>
@@ -220,7 +234,7 @@
   <div class="controls">
     <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
     <button class="btn btn-demolish" id="btnDemolish" onclick="toggleDemolishMode()">🔨 解体</button>
-    <button class="btn btn-next" onclick="nextTurn()">次のターンへ →</button>
+    <button class="btn btn-next" onclick="nextTurn()">このターンはスキップ ⏭</button>
   </div>
 
   <!-- Stage Banner + Resource Panel -->
@@ -273,6 +287,19 @@
   <div class="tip-box">
     <strong>遊び方</strong>　🏗 カード → 空きマスで配置　🔥 建物タップ → 隣の同種で合体<br>
     📊 <strong>合体は面積↓ だが生産量も↓（Lv1×2 &gt; Lv2）</strong>　💀 肉切れで人口減少
+  </div>
+</div>
+
+<div class="tut-overlay" id="tutorial" style="display:none;">
+  <div class="tut-box">
+    <h2>⚔️ 遊び方ガイド</h2>
+    <span class="tut-icon" id="tut-icon">🏗️</span>
+    <div class="tut-text" id="tut-text"></div>
+    <div class="tut-steps" id="tut-steps"></div>
+    <div class="tut-btns">
+      <button class="tut-skip" onclick="closeTutorial()">スキップ</button>
+      <button class="tut-next" id="tut-btn" onclick="nextTutStep()">次へ →</button>
+    </div>
   </div>
 </div>
 
@@ -666,8 +693,8 @@ function doPlace(r,c){
   S.pop=calcPop(); // 住居配置後に再計算
   S.placed=true;S.selCard=null;S.phase='idle';
   const mg=mergeableNeighbor(r,c);
-  if(mg){S.selCell={r,c};S.phase='merge_select';S.msg=`✅ 配置完了！隣に合体できる建物があります。合体する → 残したい方をタップ　 合体しない → キャンセルボタン or 次のターンへ`;}
-  else{S.msg=`✅ ${b.emoji} ${b.name}を配置！`;}
+  if(mg){S.selCell={r,c};S.phase='merge_select';S.msg=`✅ 配置完了！隣に合体できる建物があります。合体する → 残したい方をタップ　 合体しない → キャンセル`;}
+  else{S.msg=`✅ ${b.emoji} ${b.name}を配置！`;render();setTimeout(()=>nextTurn(), 400);return;}
   render();
 }
 
@@ -681,14 +708,17 @@ function doMerge(r1,c1,r2,c2){
   }
   if(cost>0) S.res.gold-=cost;
   S.grid[r2][c2]=nid;S.grid[r1][c1]=null;S.selCell=null;S.phase='idle';
+  S.placed=true; // 合体で1ターン消費
   S.pop=calcPop(); // 合体後に再計算
   let diff='';
   if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];const was=(b.prod[k]||0)*2;const now=nb.prod[k]||0;diff=` 生産:${was}→${now}/T（-${was-now}）`;}
   const costStr=cost>0?` 💰-${cost}`:'';
   const mg=mergeableNeighbor(r2,c2);
   S.msg=`🔥 合体！${b.emoji}×2→${nb.emoji}${nb.name}！${diff}${costStr}`;
-  if(mg){S.selCell={r:r2,c:c2};S.phase='merge_select';}
+  if(mg){S.selCell={r:r2,c:c2};S.phase='merge_select';render();return;}
+  // 連鎖合体なし → 自動ターン進行
   render();
+  setTimeout(()=>nextTurn(), 400);
 }
 
 function mergeableNeighbor(r,c){
@@ -730,10 +760,17 @@ function doDemolish(r,c){
 
 function cancelAction(){
   const wasMerge = S.phase==='merge_select';
+  const wasPlaced = S.placed;
   S.demolishMode=false;
   document.getElementById('btnDemolish').classList.remove('active');
   S.selCard=null;S.selCell=null;S.phase='idle';
-  S.msg = wasMerge ? '合体をキャンセルしました。次のターンへ進むか、別の操作をどうぞ。' : '建物カードを選んで配置しよう！';
+  if(wasMerge && wasPlaced){
+    S.msg='合体をキャンセル。ターンを進めます…';
+    render();
+    setTimeout(()=>nextTurn(), 300);
+    return;
+  }
+  S.msg = wasMerge ? '合体をキャンセルしました。' : '建物カードを選んで配置しよう！';
   render();
 }
 
@@ -797,9 +834,46 @@ function showBonus(bonusMsg, nextMsg){
 }
 
 function showOverlay(title,msg){document.getElementById('o-title').textContent=title;document.getElementById('o-msg').textContent=msg;document.getElementById('overlay').classList.add('show');}
-function restartGame(){document.getElementById('overlay').classList.remove('show');initState();render();}
+function restartGame(){document.getElementById('overlay').classList.remove('show');initState();render();showTutorial();}
 
-initState();render();
+// ── TUTORIAL ──
+const TUT_PAGES = [
+  { icon:'🏗️', text:'下のカードから建物を選んで、\nグリッドの空きマスをタップして配置！\n1ターンに1つ配置できます。' },
+  { icon:'🔥', text:'同じ種類の建物を隣に並べよう！\n建物をタップ → 隣の同種をタップで合体！\nレベルアップするけど生産量は下がるので注意。\n合体にも1ターン消費します。' },
+  { icon:'🥩', text:'毎ターン人口に応じて肉を消費します。\n肉が尽きると人口が減少！\n狩猟小屋や牧場で食料を確保しよう。' },
+  { icon:'🎯', text:'各ステージの人口目標を\n制限ターン内に達成しよう！\n早くクリアするほどボーナスが貰えます。\nさあ、王国を築こう！' },
+];
+let tutStep = 0;
+
+function showTutorial(){
+  if(localStorage.getItem('kp_tut_done')) return;
+  tutStep = 0;
+  document.getElementById('tutorial').style.display = 'flex';
+  renderTutStep();
+}
+function renderTutStep(){
+  document.getElementById('tut-icon').textContent = TUT_PAGES[tutStep].icon;
+  document.getElementById('tut-text').textContent = TUT_PAGES[tutStep].text;
+  const dots = document.getElementById('tut-steps');
+  dots.innerHTML = '';
+  TUT_PAGES.forEach((_,i)=>{
+    const d = document.createElement('div');
+    d.className = 'tut-dot' + (i===tutStep?' active':'');
+    dots.appendChild(d);
+  });
+  document.getElementById('tut-btn').textContent = tutStep===TUT_PAGES.length-1 ? 'ゲーム開始！' : '次へ →';
+}
+function nextTutStep(){
+  tutStep++;
+  if(tutStep >= TUT_PAGES.length){ closeTutorial(); return; }
+  renderTutStep();
+}
+function closeTutorial(){
+  document.getElementById('tutorial').style.display = 'none';
+  localStorage.setItem('kp_tut_done','1');
+}
+
+initState();render();showTutorial();
 </script>
 </body>
 </html>
