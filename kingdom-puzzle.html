@@ -426,7 +426,7 @@ let S={};
 function initState(){
   S={
     grid:Array(5).fill(null).map(()=>Array(5).fill(null)),
-    res:{wood:30,stone:10,meat:25,gold:0}, pop:0,
+    res:{wood:30,stone:10,meat:15,gold:0}, pop:0,
     turn:0,stage:0,offered:[],
     selCard:null,selCell:null,placed:false,phase:'idle',
     msg:'建物カードを選んで空きマスに配置しよう！',
@@ -526,7 +526,14 @@ function calcPop(){
   }
   return Math.max(0,p);
 }
-function meatCost(){ return Math.max(1,Math.ceil(calcPop()/3)); }
+function meatCost(){
+  // 人口÷2 + 建物数（岩除く）で消費。最低2
+  let buildings=0;
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const bid=S.grid[r][c]; if(bid&&bid!=='rock') buildings++;
+  }
+  return Math.max(2, Math.ceil(calcPop()/2) + buildings);
+}
 
 // Compute next-turn production
 function calcNextTurn(){
@@ -598,7 +605,7 @@ function renderResPanel(){
     popEl.textContent=`⚠ 肉残りわずか！消費-${consume}/T`;
     popEl.className='res-next neg';
   } else {
-    popEl.textContent=`消費 -${consume}/T（人口÷3）`;
+    popEl.textContent=`消費 -${consume}/T（人口÷2+建物数）`;
     popEl.className='res-next';
   }
 }
