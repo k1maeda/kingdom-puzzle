@@ -984,7 +984,7 @@ function showBonus(bonusMsg, nextMsg){
 }
 
 function showOverlay(title,msg){document.getElementById('o-title').textContent=title;document.getElementById('o-msg').textContent=msg;document.getElementById('overlay').classList.add('show');}
-function restartGame(){document.getElementById('overlay').classList.remove('show');initState();render();showTutorial();}
+function restartGame(){document.getElementById('overlay').classList.remove('show');initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();}
 
 // ── TUTORIAL ──
 const TUT_PAGES = [
@@ -1023,7 +1023,7 @@ function closeTutorial(){
   localStorage.setItem('kp_tut_done','1');
 }
 
-initState();render();showTutorial();
+initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();
 </script>
 </body>
 </html>
