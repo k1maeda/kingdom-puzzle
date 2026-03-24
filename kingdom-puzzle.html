@@ -895,6 +895,14 @@ function showTurnBanner(turnNum, eventInfo){
 function nextTurn(){
   if(S.gameOver||S.gameWon)return;
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
+
+  // ランダムイベント（先に抽選）
+  const ev=triggerEvent();
+  S.lastEvent=ev;
+
+  // ターンバナーを最初に表示
+  showTurnBanner(S.turn, ev);
+
   S.pop=calcPop();
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
@@ -905,13 +913,6 @@ function nextTurn(){
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   S.res.wood+=wp;S.res.stone+=sp;S.res.meat+=mp;S.res.gold+=gp;
   const consume=meatCost();S.res.meat-=consume;
-
-  // ランダムイベント
-  const ev=triggerEvent();
-  S.lastEvent=ev;
-
-  // ターンバナー表示
-  showTurnBanner(S.turn, ev);
 
   if(S.res.meat<0){
     const loss=Math.max(1,Math.ceil(Math.abs(S.res.meat)));
