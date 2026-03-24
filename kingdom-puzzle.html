@@ -905,15 +905,7 @@ function nextTurn(){
     return;
   }
 
-  S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
-
-  // ランダムイベント（先に抽選）
-  const ev=triggerEvent();
-  S.lastEvent=ev;
-
-  // ターンバナーを最初に表示
-  showTurnBanner(S.turn, ev);
-
+  // ── 1) 前ターンの資源収穫（配置済み建物からの生産） ──
   S.pop=calcPop();
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
@@ -930,8 +922,9 @@ function nextTurn(){
     S.pop=Math.max(0,S.pop-loss);S.res.meat=0;
     if(S.pop<=0){S.gameOver=true;showOverlay('💀 ゲームオーバー',`ターン${S.turn}：食料が尽き人口が0になりました。`);return;}
   }
+
+  // ── 2) ステージクリア判定 ──
   const st=getStage(S.stage);
-  // 期限チェックはターン進行前に実施済み
   if(S.pop>=st.target){
     const leftTurns = st.byTurn - S.turn;
     const mult = 1 + S.stage;
@@ -943,7 +936,6 @@ function nextTurn(){
     S.res.stone += bonusS;
     S.res.meat  += bonusM;
     S.res.gold  += bonusG;
-    // 岩リセット＆再配置
     clearRocks();
     S.stage++;
     placeRocks(rockCount(S.stage));
@@ -954,10 +946,21 @@ function nextTurn(){
     showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
     S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
     return;
-  } else {
-    let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
-    S.msg=`T${S.turn}完了 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${evMsg} ｜残り${st.byTurn-S.turn}T`;
   }
+
+  // ── 3) 新ターン開始：番号を進め、バナーを表示 ──
+  S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
+
+  // ランダムイベント
+  const ev=triggerEvent();
+  S.lastEvent=ev;
+
+  // ターンバナー（新ターン開始を宣言）
+  showTurnBanner(S.turn, ev);
+
+  let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
+  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${evMsg} ｜残り${st.byTurn-S.turn}T`;
+
   S.offered=makeOffer();render();
 
   // イベントでメッセージバーに色付け
