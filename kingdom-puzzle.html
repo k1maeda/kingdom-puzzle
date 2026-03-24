@@ -487,6 +487,16 @@ function makeOffer(){
 
   pool.sort(()=>Math.random()-0.5);
   const result=[];const used=new Set();
+
+  // Lv1が出現可能なら、1枚目は必ずLv1を入れる（序盤詰み防止）
+  if(lvWeight(1)>0){
+    const lv1pool = pool.filter(id=>B[id].lv===1);
+    if(lv1pool.length>0){
+      const pick=lv1pool[Math.floor(Math.random()*lv1pool.length)];
+      result.push(pick);used.add(B[pick].type);
+    }
+  }
+
   for(const id of pool){
     const t=B[id].type;
     if(!used.has(t)){used.add(t);result.push(id);}
