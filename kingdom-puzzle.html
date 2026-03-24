@@ -997,9 +997,11 @@ function nextTurn(){
     S.res.stone += bonusS;
     S.res.meat  += bonusM;
     S.res.gold  += bonusG;
-    clearRocks();
+    // 既存の岩はそのまま残し、新ステージ分だけ追加
+    const curRocks=S.grid.flat().filter(x=>x==='rock').length;
     S.stage++;
-    placeRocks(rockCount(S.stage));
+    const targetRocks=rockCount(S.stage);
+    if(targetRocks>curRocks) placeRocks(targetRocks-curRocks);
     const ns=getStage(S.stage);
     const bonusMsg = leftTurns>0
       ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
