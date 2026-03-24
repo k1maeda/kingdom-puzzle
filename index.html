@@ -576,10 +576,19 @@ function renderResPanel(){
   setNx('stone',S.res.stone,nx.stone);
   setNx('meat', S.res.meat, meatNext);
 
-  // pop: just show consumption
+  // pop: show consumption + starvation warning
   const popEl=document.getElementById('rx-pop');
-  popEl.textContent=`消費 -${consume}/T（人口÷3）`;
-  popEl.className='res-next'+(meatNext<0?' danger':meatNext<consume*2?' neg':'');
+  if(meatNext<0){
+    const popLoss=Math.max(1,Math.ceil(Math.abs(meatNext)));
+    popEl.textContent=`⚠ 飢餓！人口-${popLoss}（肉不足${Math.abs(meatNext)}）`;
+    popEl.className='res-next danger';
+  } else if(meatNext<consume){
+    popEl.textContent=`⚠ 肉残りわずか！消費-${consume}/T`;
+    popEl.className='res-next neg';
+  } else {
+    popEl.textContent=`消費 -${consume}/T（人口÷3）`;
+    popEl.className='res-next';
+  }
 }
 
 function renderGrid(){
@@ -919,8 +928,13 @@ function nextTurn(){
 
   if(S.res.meat<0){
     const loss=Math.max(1,Math.ceil(Math.abs(S.res.meat)));
+    const prevPop=S.pop;
     S.pop=Math.max(0,S.pop-loss);S.res.meat=0;
-    if(S.pop<=0){S.gameOver=true;showOverlay('💀 ゲームオーバー',`ターン${S.turn}：食料が尽き人口が0になりました。`);return;}
+    if(S.pop<=0){S.gameOver=true;showOverlay('💀 ゲームオーバー',`ターン${S.turn}：食料が尽き人口が0になりました。\n\n💡 肉(🥩)が毎ターン消費されます。\n狩猟小屋や牧場で食料を確保しよう！`);return;}
+    // 飢餓発生を明確に通知
+    S._starvation={loss, prevPop, newPop:S.pop};
+  } else {
+    S._starvation=null;
   }
 
   // ── 2) ステージクリア判定 ──
@@ -959,12 +973,17 @@ function nextTurn(){
   showTurnBanner(S.turn, ev);
 
   let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
-  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${evMsg} ｜残り${st.byTurn-S.turn}T`;
+  let starveMsg = S._starvation ? ` 💀飢餓！人口${S._starvation.prevPop}→${S._starvation.newPop}（-${S._starvation.loss}人）` : '';
+  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn}T`;
 
   S.offered=makeOffer();render();
 
-  // イベントでメッセージバーに色付け
-  if(ev){
+  // イベント・飢餓でメッセージバーに色付け
+  if(S._starvation){
+    const msgEl=document.getElementById('message');
+    msgEl.classList.add('event-bad');
+    setTimeout(()=>{ msgEl.classList.remove('event-bad'); }, 2500);
+  } else if(ev){
     const msgEl=document.getElementById('message');
     msgEl.classList.add(ev.good?'event-good':'event-bad');
     setTimeout(()=>{ msgEl.classList.remove('event-good','event-bad'); }, 2000);
