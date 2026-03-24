@@ -222,7 +222,9 @@
     border: 2px solid #5A5A5A; cursor: default;
   }
   .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
-  .cell.rock .rock-label { font-size:0.4rem; color:#888; margin-top:2px; }
+  .cell.rock .rock-label { font-size:0.38rem; color:#888; margin-top:2px; }
+  .cell.rock.rock-breakable { border-color:#8A7030; cursor:pointer; }
+  .cell.rock.rock-breakable .rock-label { color:#C0A060; }
 
   /* ── Turn Banner ── */
   .turn-banner {
@@ -598,8 +600,11 @@ function renderGrid(){
     const div=document.createElement('div');
     // 岩セル
     if(bid==='rock'){
-      div.className='cell rock';
-      div.innerHTML='<div class="rock-icon">🪨</div><div class="rock-label">岩</div>';
+      const rc=rockBreakCost();
+      const affordable=canBreakRock();
+      div.className='cell rock'+(affordable?' rock-breakable':'');
+      div.innerHTML=`<div class="rock-icon">🪨</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
+      div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
     div.className='cell'+(bid?'':' empty');
@@ -700,8 +705,19 @@ function mergeSelectMsg(b){
 function onCell(r,c){
   const bid=S.grid[r][c];
 
-  // ── 岩セルは無視 ──
-  if(bid==='rock') return;
+  // ── 岩セル：砕くアクション ──
+  if(bid==='rock'){
+    const cost=rockBreakCost();
+    if(canBreakRock()){
+      if(confirm(`岩を砕きますか？\n必要資源: 🪵${cost.wood} 🪨${cost.stone}`)){
+        breakRock(r,c);
+      }
+    } else {
+      S.msg=`🪨 岩を砕くには 🪵${cost.wood} 🪨${cost.stone} 必要`;
+      render();
+    }
+    return;
+  }
 
   // ── 解体モード ──
   if(S.phase==='demolish'){
@@ -862,22 +878,24 @@ const EVENTS_BAD = [
     S.res.meat=Math.max(0,S.res.meat-8); return '🥩-8';
   }},
   { icon:'🌪️', name:'嵐', msg:'激しい嵐で石材が失われた！', apply:()=>{ S.res.stone=Math.max(0,S.res.stone-8); return '🪨-8'; }},
-  { icon:'🪨', name:'落石', msg:'落石でマスが塞がれた！', apply:()=>{
-    const empties=[];
-    for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
-    if(empties.length>0){
-      const p=empties[Math.floor(Math.random()*empties.length)];
-      S.grid[p.r][p.c]='rock';
-      return '岩+1';
-    }
-    return '(空きなし)';
-  }},
 ];
 
 function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
-  // 発生確率: 20% + ステージ×3%（最大35%）
+
+  // 落石：約20ターンに1回（5%確率）、通常イベントとは別枠
+  if(Math.random()<0.05){
+    const empties=[];
+    for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
+    if(empties.length>0){
+      const p=empties[Math.floor(Math.random()*empties.length)];
+      S.grid[p.r][p.c]='rock';
+      return { icon:'🪨', name:'落石', msg:'落石でマスが塞がれた！', detail:'岩+1', good:false };
+    }
+  }
+
+  // 通常イベント: 20% + ステージ×3%（最大35%）
   const chance = 0.20 + Math.min(0.15, S.stage * 0.03);
   if(Math.random() > chance) return null;
   // 良い/悪い 50:50
@@ -885,6 +903,25 @@ function triggerEvent(){
   const ev = pool[Math.floor(Math.random()*pool.length)];
   const detail = ev.apply();
   return { icon:ev.icon, name:ev.name, msg:ev.msg, detail, good:pool===EVENTS_GOOD };
+}
+
+// ── 岩を砕く ──
+function rockBreakCost(){ return { wood: 10 + S.turn * 3, stone: 5 + S.turn * 2 }; }
+
+function canBreakRock(){ const c=rockBreakCost(); return S.res.wood>=c.wood && S.res.stone>=c.stone; }
+
+function breakRock(r,c){
+  if(S.grid[r][c]!=='rock') return;
+  const cost=rockBreakCost();
+  if(S.res.wood<cost.wood||S.res.stone<cost.stone){
+    S.msg=`🪨 岩を砕くには 🪵${cost.wood} 🪨${cost.stone} 必要（不足）`;
+    render();return;
+  }
+  S.res.wood-=cost.wood;
+  S.res.stone-=cost.stone;
+  S.grid[r][c]=null;
+  S.msg=`⛏️ 岩を砕いた！🪵-${cost.wood} 🪨-${cost.stone}`;
+  render();
 }
 
 // ── TURN BANNER ──
