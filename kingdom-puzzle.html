@@ -86,15 +86,7 @@
 
   .cell.selected { border-color: #FFD700!important; box-shadow: 0 0 14px rgba(255,215,0,0.55); border-style: solid!important; }
   .cell.demolish-target {
-    border: 3px solid #FF6600!important;
-    box-shadow: 0 0 14px rgba(255,102,0,0.8)!important;
-  }
-  .cell.demolish-target::after {
-    content: '🔨 解体';
-    position:absolute;inset:0;background:rgba(120,40,0,0.65);
-    display:flex;align-items:center;justify-content:center;
-    font-size:0.62rem;color:#FFD0A0;font-weight:bold;
-    border-radius:5px;z-index:3;pointer-events:none;
+    display:none; /* deprecated */
   }
   .cell.merge-target { border-color: #00FF88!important; border-style: solid!important; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
 
@@ -267,7 +259,6 @@
 
   <div class="controls">
     <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
-    <button class="btn btn-demolish" id="btnDemolish" onclick="toggleDemolishMode()">🔨 解体</button>
     <button class="btn btn-next" onclick="nextTurn()">このターンはスキップ ⏭</button>
   </div>
 
@@ -430,7 +421,7 @@ function initState(){
     turn:0,stage:0,offered:[],
     selCard:null,selCell:null,placed:false,phase:'idle',
     msg:'建物カードを選んで空きマスに配置しよう！',
-    gameOver:false,gameWon:false,demolishMode:false,
+    gameOver:false,gameWon:false,
     lastEvent:null,
   };
   placeRocks(rockCount(0));
@@ -629,7 +620,6 @@ function renderGrid(){
       const b=B[bid];div.setAttribute('data-lv',b.lv);
       const isSel=S.selCell&&S.selCell.r===r&&S.selCell.c===c;
       const isMT=!isSel&&isMergeTarget(r,c);
-      if(S.phase==='demolish') div.classList.add('demolish-target');
       const prodStr=b.prod?Object.entries(b.prod).map(([k,v])=>ri(k)+v).join(' '):(b.type==='house'?`👥${b.pop}人`:'');
       div.innerHTML=`<div class="b-lvl">Lv${b.lv}</div><div class="b-icon">${b.emoji}</div><div class="b-name">${b.name}</div><div class="b-prod">${prodStr}</div>`;
       // 合体選択中：選択セルは赤、合体候補はすべて緑（phaseを問わず selCell があれば表示）
@@ -736,12 +726,6 @@ function onCell(r,c){
     return;
   }
 
-  // ── 解体モード ──
-  if(S.phase==='demolish'){
-    if(!bid){S.msg='🔨 解体したい建物をタップしてください。';render();return;}
-    doDemolish(r,c);return;
-  }
-
   // ── 配置モード ──
   if(S.phase==='placing'&&S.selCard!==null){
     if(bid){S.msg='そこには配置できません！';render();return;}
@@ -839,37 +823,10 @@ function canAfford(bid){
   return Object.entries(b.cost).every(([k,v])=>(S.res[k]||0)>=v);
 }
 
-function toggleDemolishMode(){
-  S.demolishMode = !S.demolishMode;
-  S.selCard=null;S.selCell=null;S.phase=S.demolishMode?'demolish':'idle';
-  document.getElementById('btnDemolish').classList.toggle('active', S.demolishMode);
-  S.msg = S.demolishMode
-    ? '🔨 解体モード：撤去したい建物をタップ（金が必要）'
-    : '建物カードを選んで配置しよう！';
-  render();
-}
-
-function doDemolish(r,c){
-  const bid=S.grid[r][c];if(!bid)return;
-  const b=B[bid];
-  const cost=demolishCost(b.lv);
-  if(S.res.gold<cost){
-    S.msg=`💰 金が足りない！解体には💰${cost}必要（現在${S.res.gold}）`;
-    render();return;
-  }
-  S.res.gold-=cost;
-  S.grid[r][c]=null;
-  // Remove production
-  S.pop=calcPop();
-  S.msg=`🔨 ${b.emoji}${b.name}を解体（💰-${cost}）`;
-  render();
-}
 
 function cancelAction(){
   const wasMerge = S.phase==='merge_select';
   const wasPlaced = S.placed;
-  S.demolishMode=false;
-  document.getElementById('btnDemolish').classList.remove('active');
   S.selCard=null;S.selCell=null;S.phase='idle';
   if(wasMerge && wasPlaced){
     S.msg='合体をキャンセル。ターンを進めます…';
