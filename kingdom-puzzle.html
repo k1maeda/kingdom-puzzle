@@ -676,7 +676,7 @@ function renderCards(){
 function renderInfo(){
   document.getElementById('d-turn').textContent=S.turn;
   const s=getStage(S.stage);
-  const left=s.byTurn-S.turn;
+  const left=Math.max(0, s.byTurn-S.turn);
   const UNLOCK_D=[5,7,9,11,13,15,17];
   const minLvNow=UNLOCK_D.findIndex(d=>S.stage<d)+1||7;
   const UNLOCK_T=[0,0,3,5,7,9,11];
@@ -915,16 +915,6 @@ function showTurnBanner(turnNum, eventInfo){
 function nextTurn(){
   if(S.gameOver||S.gameWon)return;
 
-  // ── ターン進行前にステージ期限チェック ──
-  // 現ターン（まだインクリメント前）が期限ターンに達していたら判定
-  const stPre=getStage(S.stage);
-  S.pop=calcPop();
-  if(S.turn>=stPre.byTurn&&S.pop<stPre.target){
-    S.gameOver=true;
-    showOverlay('💀 ゲームオーバー',`${stPre.label}：ターン${stPre.byTurn}までに${stPre.target}人に届かず（${S.pop}人）`);
-    return;
-  }
-
   // ── 1) 前ターンの資源収穫（配置済み建物からの生産） ──
   S.pop=calcPop();
   let wp=0,sp=0,mp=0;
@@ -977,6 +967,13 @@ function nextTurn(){
 
   // ── 3) 新ターン開始：番号を進め、バナーを表示 ──
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
+
+  // ── ステージ期限チェック（飢餓処理後の人口 & 新ターン番号で判定） ──
+  if(S.turn>st.byTurn&&S.pop<st.target){
+    S.gameOver=true;
+    showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);
+    return;
+  }
 
   // ランダムイベント
   const ev=triggerEvent();
