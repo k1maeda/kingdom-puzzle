@@ -962,9 +962,8 @@ function nextTurn(){
     const bonusMsg = leftTurns>0
       ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
       : 'ギリギリクリア！ボーナスなし';
-    showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
-    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
-    return;
+    S.msg=`🎉 ${st.label}クリア！${bonusMsg} 次→${ns.target}人（T${ns.byTurn}まで）`;
+    // ステージクリア後もそのまま新ターンに進む（returnしない）
   }
 
   // ── 3) 新ターン開始：番号を進め、バナーを表示 ──
@@ -1002,17 +1001,6 @@ function nextTurn(){
   }
 }
 
-function showBonus(bonusMsg, nextMsg){
-  document.getElementById('o-title').textContent='🎉 ステージクリア！';
-  document.getElementById('o-msg').innerHTML = bonusMsg + '<br><br>' + nextMsg;
-  document.getElementById('o-btn').textContent = '次のステージへ！';
-  document.getElementById('overlay').classList.add('show');
-  // override restart to just close
-  document.getElementById('o-btn').onclick = ()=>{
-    document.getElementById('overlay').classList.remove('show');
-    S.offered=makeOffer();render();
-  };
-}
 
 // ── RANKING (localStorage) ──
 function getScoreRecord(){
@@ -1046,9 +1034,14 @@ function showOverlay(title,msg){
   const ranking=saveRanking(record);
   document.getElementById('o-title').textContent=title;
   document.getElementById('o-msg').innerHTML=msg.replace(/\n/g,'<br>')+rankingHTML(ranking, record);
+  document.getElementById('o-btn').textContent='もう一度挑戦！';
+  document.getElementById('o-btn').onclick=restartGame;
   document.getElementById('overlay').classList.add('show');
+  // 5秒後に自動リスタート
+  S._restartTimer=setTimeout(()=>restartGame(), 5000);
 }
-function restartGame(){document.getElementById('overlay').classList.remove('show');initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();}
+
+function restartGame(){if(S._restartTimer)clearTimeout(S._restartTimer);document.getElementById('overlay').classList.remove('show');initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();}
 
 // ── TUTORIAL ──
 const TUT_PAGES = [
