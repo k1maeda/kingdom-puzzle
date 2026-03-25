@@ -421,7 +421,7 @@ function initState(){
     turn:0,stage:0,offered:[],
     selCard:null,selCell:null,placed:false,phase:'idle',
     msg:'建物カードを選んで空きマスに配置しよう！',
-    gameOver:false,gameWon:false,
+    gameOver:false,gameWon:false,maxPop:0,
     lastEvent:null,
   };
   placeRocks(rockCount(0));
@@ -515,7 +515,9 @@ function calcPop(){
     const bid=S.grid[r][c];
     if(bid&&bid!=='rock'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
   }
-  return Math.max(0,p);
+  p=Math.max(0,p);
+  if(S.maxPop!==undefined && p>S.maxPop) S.maxPop=p;
+  return p;
 }
 function meatCost(){
   // 人口÷3 + 建物数（岩除く）で消費。最低2
@@ -1012,7 +1014,40 @@ function showBonus(bonusMsg, nextMsg){
   };
 }
 
-function showOverlay(title,msg){document.getElementById('o-title').textContent=title;document.getElementById('o-msg').textContent=msg;document.getElementById('overlay').classList.add('show');}
+// ── RANKING (localStorage) ──
+function getScoreRecord(){
+  return { stage:S.stage+1, turn:S.turn, maxPop:S.maxPop||S.pop, pop:S.pop, date:new Date().toLocaleDateString('ja-JP') };
+}
+function loadRanking(){ try{return JSON.parse(localStorage.getItem('kp_ranking'))||[];}catch(e){return [];} }
+function saveRanking(record){
+  const ranking=loadRanking();
+  ranking.push(record);
+  ranking.sort((a,b)=>b.stage-a.stage || b.maxPop-a.maxPop || b.turn-a.turn);
+  if(ranking.length>10) ranking.length=10; // 上位10件
+  localStorage.setItem('kp_ranking',JSON.stringify(ranking));
+  return ranking;
+}
+function rankingHTML(ranking, current){
+  if(ranking.length===0) return '';
+  let html='<div style="margin-top:12px;text-align:left;font-size:0.7rem;color:#C0A060;max-height:180px;overflow-y:auto;">';
+  html+='<div style="text-align:center;font-weight:bold;margin-bottom:6px;color:#DAA520;">🏆 ランキング（TOP10）</div>';
+  ranking.forEach((r,i)=>{
+    const isCur = r===current;
+    const style=isCur?'color:#FFD700;font-weight:bold;':'';
+    const mark=isCur?' ← NOW':'';
+    html+=`<div style="${style}padding:2px 0;">${i+1}. 第${r.stage}段階 / 最大${r.maxPop}人 / T${r.turn} (${r.date})${mark}</div>`;
+  });
+  html+='</div>';
+  return html;
+}
+
+function showOverlay(title,msg){
+  const record=getScoreRecord();
+  const ranking=saveRanking(record);
+  document.getElementById('o-title').textContent=title;
+  document.getElementById('o-msg').innerHTML=msg.replace(/\n/g,'<br>')+rankingHTML(ranking, record);
+  document.getElementById('overlay').classList.add('show');
+}
 function restartGame(){document.getElementById('overlay').classList.remove('show');initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();}
 
 // ── TUTORIAL ──
