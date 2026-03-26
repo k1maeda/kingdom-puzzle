@@ -397,10 +397,13 @@ Object.entries(CHAINS).forEach(([type,arr])=>{
   arr.forEach((b,i)=>{ b.type=type; b.next=arr[i+1]?arr[i+1].id:null; B[b.id]=b; });
 });
 
-// 無限ステージ関数 — 制限ターンは15刻み、目標人数は段階×12
+// 無限ステージ関数 — 制限ターンは15刻み、目標人数は提案B曲線
+const STAGE_TARGETS_B = [8, 16, 28, 44, 68, 100, 140, 190, 250, 320];
 const STAGE_BYTURNS_BASE = 15;
 function getStage(n){
-  const target  = (n + 1) * 12;
+  const target = n < STAGE_TARGETS_B.length
+    ? STAGE_TARGETS_B[n]
+    : Math.round(STAGE_TARGETS_B[STAGE_TARGETS_B.length-1] * Math.pow(1.4, n - STAGE_TARGETS_B.length + 1));
   const byTurn  = (n + 1) * STAGE_BYTURNS_BASE;
   return { target, byTurn, label: `第${n+1}段階` };
 }
@@ -855,8 +858,8 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 落石：約20ターンに1回（5%確率）、通常イベントとは別枠
-  if(Math.random()<0.05){
+  // 落石：約33ターンに1回（3%確率）、通常イベントとは別枠
+  if(Math.random()<0.03){
     const empties=[];
     for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
     if(empties.length>0){
