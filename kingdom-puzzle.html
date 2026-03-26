@@ -397,19 +397,17 @@ Object.entries(CHAINS).forEach(([type,arr])=>{
   arr.forEach((b,i)=>{ b.type=type; b.next=arr[i+1]?arr[i+1].id:null; B[b.id]=b; });
 });
 
-// 無限ステージ関数
-// byTurn: 15 × 2^n → 15, 30, 60, 120, 240, 480...（倍々で余裕が増える）
-// target: 期待値の80%水準
-const STAGE_TARGETS = [8, 16, 60, 150, 450, 1000, 3000];
-const STAGE_BYTURNS = [12, 22, 35, 50, 70, 95, 125];
+// 無限ステージ関数 — 制限ターンは15刻み、目標人数は12の倍数
+const STAGE_TARGETS = [12, 24, 48, 120, 360, 840, 2400];
+const STAGE_BYTURNS = [15, 30, 45, 60, 75, 90, 105];
 function getStage(n){
   const target  = n < STAGE_TARGETS.length
     ? STAGE_TARGETS[n]
-    : Math.round(STAGE_TARGETS[STAGE_TARGETS.length-1] * Math.pow(3, n - STAGE_TARGETS.length + 1));
+    : Math.round(STAGE_TARGETS[STAGE_TARGETS.length-1] * Math.pow(3, n - STAGE_TARGETS.length + 1) / 12) * 12;
   const byTurn  = n < STAGE_BYTURNS.length
     ? STAGE_BYTURNS[n]
-    : Math.round(STAGE_BYTURNS[STAGE_BYTURNS.length-1] * Math.pow(1.4, n - STAGE_BYTURNS.length + 1));
-  return { target, byTurn: Math.round(byTurn), label: `第${n+1}段階` };
+    : STAGE_BYTURNS[STAGE_BYTURNS.length-1] + (n - STAGE_BYTURNS.length + 1) * 15;
+  return { target, byTurn, label: `第${n+1}段階` };
 }
 
 let S={};
