@@ -964,8 +964,9 @@ function nextTurn(){
     const bonusMsg = leftTurns>0
       ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
       : 'ギリギリクリア！ボーナスなし';
-    S.msg=`🎉 ${st.label}クリア！${bonusMsg} 次→${ns.target}人（T${ns.byTurn}まで）`;
-    // ステージクリア後もそのまま新ターンに進む（returnしない）
+    showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
+    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
+    return; // ボーナスポップアップ表示中はここで止める
   }
 
   // ── 3) 新ターン開始：番号を進め、バナーを表示 ──
@@ -1041,6 +1042,22 @@ function showOverlay(title,msg){
   document.getElementById('overlay').classList.add('show');
   // 5秒後に自動リスタート
   S._restartTimer=setTimeout(()=>restartGame(), 5000);
+}
+
+function showBonus(bonusMsg, nextMsg){
+  document.getElementById('o-title').textContent='🎉 ステージクリア！';
+  document.getElementById('o-msg').innerHTML=bonusMsg+'<br><br>'+nextMsg;
+  document.getElementById('o-btn').textContent='次のステージへ ▶';
+  document.getElementById('o-btn').onclick=()=>{
+    if(S._bonusTimer)clearTimeout(S._bonusTimer);
+    document.getElementById('overlay').classList.remove('show');
+    S.offered=makeOffer();render();
+  };
+  document.getElementById('overlay').classList.add('show');
+  S._bonusTimer=setTimeout(()=>{
+    document.getElementById('overlay').classList.remove('show');
+    S.offered=makeOffer();render();
+  }, 3000);
 }
 
 function restartGame(){if(S._restartTimer)clearTimeout(S._restartTimer);document.getElementById('overlay').classList.remove('show');initState();S.turn=1;showTurnBanner(1,null);render();showTutorial();}
