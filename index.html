@@ -452,9 +452,10 @@ function clearRocks(){
 
 function makeOffer(){
   // 各Lvの解放・フェードアウト・消滅ステージ（index=lv-1）
-  const UNLOCK     = [0,  0,  3,  5,  7,  9, 11];
-  const FADE_START = [3,  5,  7,  9, 11, 13, 15];
-  const DISAPPEAR  = [5,  7,  9, 11, 13, 15, 17];
+  // Lv1: 最初から、Lv2: 第3段階、Lv3: 第5段階、Lv4: 第7段階...
+  const UNLOCK     = [0,  2,  4,  6,  8, 10, 12];
+  const FADE_START = [4,  6,  8, 10, 12, 14, 16];
+  const DISAPPEAR  = [6,  8, 10, 12, 14, 16, 18];
   const types = ['lumber','food','stone','house','market'];
 
   function lvWeight(lv){
@@ -965,11 +966,10 @@ function nextTurn(){
   const st=getStage(S.stage);
   if(S.pop>=st.target){
     const leftTurns = st.byTurn - S.turn;
-    const mult = 1 + S.stage;
-    const bonusW = leftTurns * mult * 2;
-    const bonusS = leftTurns * mult * 1;
-    const bonusM = leftTurns * mult * 2;
-    const bonusG = leftTurns * mult * 1;
+    const bonusW = leftTurns * 2;
+    const bonusS = leftTurns * 1;
+    const bonusM = leftTurns * 1;
+    const bonusG = Math.ceil(leftTurns * 0.5);
     S.res.wood  += bonusW;
     S.res.stone += bonusS;
     S.res.meat  += bonusM;
