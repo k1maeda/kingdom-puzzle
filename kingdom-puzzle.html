@@ -210,8 +210,8 @@
 
   /* ── Rock Cell ── */
   .cell.rock {
-    background: linear-gradient(145deg,#2A3A20,#1A2A15) !important;
-    border: 2px solid #3A5A30; cursor: default;
+    background: linear-gradient(145deg,#1A2A3A,#0F1F2A) !important;
+    border: 2px solid #2A4A5A; cursor: default;
   }
   .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
   .cell.rock .rock-label { font-size:0.38rem; color:#888; margin-top:2px; }
@@ -609,7 +609,7 @@ function renderGrid(){
       const rc=rockBreakCost();
       const affordable=canBreakRock();
       div.className='cell rock'+(affordable?' rock-breakable':'');
-      div.innerHTML=`<div class="rock-icon">🌿</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
+      div.innerHTML=`<div class="rock-icon">🏚️</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
@@ -856,14 +856,14 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 茨の侵食：約33ターンに1回（3%確率）、通常イベントとは別枠
+  // 大雨：約33ターンに1回（3%確率）、通常イベントとは別枠
   if(Math.random()<0.03){
     const empties=[];
     for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
     if(empties.length>0){
       const p=empties[Math.floor(Math.random()*empties.length)];
       S.grid[p.r][p.c]='rock';
-      return { icon:'🌿', name:'茨の侵食', msg:'茨が生い茂りマスが塞がれた！', detail:'茨+1', good:false };
+      return { icon:'🌧️', name:'大雨', msg:'大雨で湿地帯になってしまった！', detail:'湿地+1', good:false };
     }
   }
 
