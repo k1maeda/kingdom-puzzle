@@ -392,7 +392,7 @@ const CHAINS = {
 };
 
 // 合体コスト（Lv N→N+1 に必要な金）Lv1→2は無料
-const MERGE_GOLD_COST = [3, 9, 21, 45, 90, 165, 300]; // Lv1→2: 3, Lv2→3: 9, ...
+const MERGE_GOLD_COST = [5, 15, 35, 70, 140, 250, 450]; // Lv1→2: 5, Lv2→3: 15, ...
 const DEMOLISH_GOLD_COST = [2, 5, 12, 25, 50, 100, 200]; // Lv1:2, Lv2:5, ...
 function demolishCost(lv){ return DEMOLISH_GOLD_COST[lv-1]||2; }
 function mergeCost(lv){ return MERGE_GOLD_COST[lv-1]||0; }
@@ -419,7 +419,7 @@ let S={};
 function initState(){
   S={
     grid:Array(5).fill(null).map(()=>Array(5).fill(null)),
-    res:{wood:30,stone:10,meat:18,gold:0}, pop:0,
+    res:{wood:30,stone:10,meat:15,gold:0}, pop:0,
     turn:0,stage:0,offered:[],
     selCard:null,selCell:null,placed:false,phase:'idle',
     msg:'建物カードを選んで空きマスに配置しよう！',
@@ -522,10 +522,10 @@ function calcPop(){
   return p;
 }
 function meatCost(){
-  // 人口0なら消費0。それ以外は人口÷3（切り上げ）、最低1
+  // 人口0なら消費0。それ以外は人口÷2（切り上げ）、最低1
   const pop=calcPop();
   if(pop===0) return 0;
-  return Math.max(1, Math.ceil(pop/3));
+  return Math.max(1, Math.ceil(pop/2));
 }
 
 // Compute next-turn production
@@ -609,7 +609,7 @@ function renderResPanel(){
     popEl.textContent=`⚠ 飢餓！人口-${popLoss}`;
     popEl.className='res-next danger';
   } else {
-    popEl.textContent=`人口÷3 = 消費${consume}/T`;
+    popEl.textContent=`人口÷2 = 消費${consume}/T`;
     popEl.className='res-next';
   }
 }
@@ -715,11 +715,22 @@ function onCard(i){
 }
 
 function mergeSelectMsg(b){
-  const nb=B[b.next];let info='';
-  if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];info=`（合体後${nb.prod[k]}/T, 現在2枚${(b.prod[k]||0)*2}/T）`;}
+  const nb=B[b.next];
   const mc=mergeCost(b.lv);
-  const mcStr=mc>0?`💰${mc}必要`:'コスト無料';
-  return `🔴 ステップ1完了：「消える」建物を選択。▶ ステップ2：残したい隣の同種建物をタップ → 合体！${info}[${mcStr}]　やめる→キャンセル`;
+  let info='';
+  if(b.prod&&nb.prod){
+    const k=Object.keys(b.prod)[0];
+    const icon=ri(k);
+    const before=(b.prod[k]||0)*2;
+    const after=nb.prod[k]||0;
+    info=`\n📊 合体前: ${b.emoji}×2 = ${icon}${before}/T → 合体後: ${nb.emoji} = ${icon}${after}/T（-${before-after}）`;
+  } else if(b.type==='house'&&nb.pop){
+    const before=b.pop*2;
+    const after=nb.pop;
+    info=`\n📊 合体前: ${b.emoji}×2 = 👥${before}人 → 合体後: ${nb.emoji} = 👥${after}人（${after>=before?'+':''}${after-before}）`;
+  }
+  const mcStr=mc>0?`💰${mc}必要（所持:${S.res.gold}）`:'コスト無料';
+  return `✕マークの建物が消えます → ★マークの建物をタップで合体！${info}\n[${mcStr}]　キャンセル→やめる`;
 }
 
 function onCell(r,c){
@@ -859,12 +870,11 @@ const EVENTS_GOOD = [
   { icon:'💰', name:'徴税', msg:'民からの税収が入った！', apply:()=>{ S.res.gold+=5; return '💰+5'; }},
 ];
 const EVENTS_BAD = [
-  { icon:'🏴', name:'山賊襲来', msg:'山賊に資材を奪われた！', apply:()=>{ S.res.wood=Math.max(0,S.res.wood-12); return '🪵-12'; }},
+  { icon:'🏴', name:'山賊襲来', msg:'山賊に資材を奪われた！', apply:()=>{ S.res.wood=Math.max(0,S.res.wood-18); return '🪵-18'; }},
   { icon:'🦠', name:'疫病', msg:'疫病が広がった…', apply:()=>{
-    // 住居系の人口を直接減らすのではなく、肉を減らして間接的に影響
-    S.res.meat=Math.max(0,S.res.meat-8); return '🥩-8';
+    S.res.meat=Math.max(0,S.res.meat-12); return '🥩-12';
   }},
-  { icon:'🌪️', name:'嵐', msg:'激しい嵐で石材が失われた！', apply:()=>{ S.res.stone=Math.max(0,S.res.stone-8); return '🪨-8'; }},
+  { icon:'🌪️', name:'嵐', msg:'激しい嵐で石材が失われた！', apply:()=>{ S.res.stone=Math.max(0,S.res.stone-12); return '🪨-12'; }},
 ];
 
 function triggerEvent(){
