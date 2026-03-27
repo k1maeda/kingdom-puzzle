@@ -518,14 +518,10 @@ function calcPop(){
   return p;
 }
 function meatCost(){
-  // 人口0なら消費0。それ以外は人口÷3 + 建物数、最低1
+  // 人口0なら消費0。それ以外は人口÷3（切り上げ）、最低1
   const pop=calcPop();
   if(pop===0) return 0;
-  let buildings=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const bid=S.grid[r][c]; if(bid&&bid!=='rock') buildings++;
-  }
-  return Math.max(1, Math.ceil(pop/3) + buildings);
+  return Math.max(1, Math.ceil(pop/3));
 }
 
 // Compute next-turn production
