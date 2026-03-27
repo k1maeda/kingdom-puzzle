@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.1</title>
+<title>王国パズル v4.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -248,7 +248,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.1</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.2</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -402,7 +402,7 @@ Object.entries(CHAINS).forEach(([type,arr])=>{
 });
 
 // 無限ステージ関数
-const STAGE_TARGETS = [8, 16, 32, 60, 120, 240];
+const STAGE_TARGETS = [8, 24, 40, 72, 120, 240];
 const STAGE_BYTURNS = [15, 30, 60, 90, 120, 150];
 function getStage(n){
   const target = n < STAGE_TARGETS.length
