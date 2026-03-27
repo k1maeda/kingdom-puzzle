@@ -101,7 +101,7 @@
   .b-lvl { position:absolute; top:2px; left:4px; font-size:0.5rem; color:#FFD700; font-weight:bold; background:rgba(0,0,0,0.45); border-radius:3px; padding:0 3px; }
   .b-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); line-height:1; }
   .b-name { font-size:clamp(0.38rem,1.2vw,0.52rem); color:#F0DCA0; text-align:center; margin-top:1px; line-height:1.2; }
-  .b-prod { position:absolute; bottom:1px; left:0; right:0; text-align:center; font-size:clamp(0.55rem,1.8vw,0.75rem); color:#90C888; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .b-prod { position:absolute; bottom:2px; left:0; right:0; text-align:center; font-size:clamp(0.65rem,2.2vw,0.85rem); color:#90C888; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
 
   /* ── Message ── */
   .message {
@@ -139,7 +139,7 @@
   .c-icon { font-size: 1.5rem; display: block; }
   .c-lv { font-size: 0.58rem; color: #A07020; font-weight: bold; display: block; margin: 1px 0; }
   .c-name { font-size: 0.68rem; color: #3A2210; font-weight: bold; margin: 2px 0 1px; display: block; }
-  .c-prod { font-size: 0.65rem; color: #2A6040; display: block; font-weight: bold; }
+  .c-prod { font-size: 0.8rem; color: #2A6040; display: block; font-weight: bold; }
   .c-cost { font-size: 0.62rem; color: #8B1A1A; margin-top: 2px; display: block; }
   .c-compare { font-size: 0.5rem; color: #7A5020; display: block; margin-top: 2px; font-style: italic; }
 
@@ -153,26 +153,26 @@
   }
 
   .res-panel-title {
-    font-size: 0.6rem; color: #806030; text-align: center; margin-bottom: 6px; letter-spacing: 1px;
+    font-size: 0.7rem; color: #806030; text-align: center; margin-bottom: 8px; letter-spacing: 1px;
   }
 
   .res-grid {
-    display: grid; grid-template-columns: repeat(4,1fr); gap: 5px;
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 6px;
   }
 
   .res-item {
     background: rgba(0,0,0,0.3); border: 1px solid #4A3218; border-radius: 8px;
-    padding: 5px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px;
   }
 
-  .res-icon { font-size: 1rem; line-height: 1; }
-  .res-label { font-size: 0.55rem; color: #8A6030; }
-  .res-now { font-size: 1rem; font-weight: bold; color: #E8D0A0; line-height: 1; }
+  .res-icon { font-size: 1.2rem; line-height: 1; }
+  .res-label { font-size: 0.7rem; color: #A08040; }
+  .res-now { font-size: 1.3rem; font-weight: bold; color: #E8D0A0; line-height: 1; }
   .res-now.warn { color: #FF9944; }
   .res-now.danger { color: #FF4444; animation: pulse 0.8s infinite; }
 
   /* next-turn preview row */
-  .res-next { font-size: 0.62rem; color: #7A8C6A; margin-top: 2px; line-height: 1; }
+  .res-next { font-size: 0.75rem; color: #7A8C6A; margin-top: 3px; line-height: 1.2; }
   .res-next.pos { color: #70C060; }
   .res-next.neg { color: #E05030; }
   .res-next.danger { color: #FF3020; font-weight: bold; animation: pulse 0.8s infinite; }
@@ -210,8 +210,8 @@
 
   /* ── Rock Cell ── */
   .cell.rock {
-    background: linear-gradient(145deg,#4A4A4A,#3A3A3A) !important;
-    border: 2px solid #5A5A5A; cursor: default;
+    background: linear-gradient(145deg,#2A3A20,#1A2A15) !important;
+    border: 2px solid #3A5A30; cursor: default;
   }
   .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
   .cell.rock .rock-label { font-size:0.38rem; color:#888; margin-top:2px; }
@@ -594,7 +594,7 @@ function renderResPanel(){
     popEl.textContent=`⚠ 肉残りわずか！消費-${consume}/T`;
     popEl.className='res-next neg';
   } else {
-    popEl.textContent=`消費 -${consume}/T（人口÷3+建物数）`;
+    popEl.textContent=`消費 -${consume}/T（人口÷3）`;
     popEl.className='res-next';
   }
 }
@@ -609,7 +609,7 @@ function renderGrid(){
       const rc=rockBreakCost();
       const affordable=canBreakRock();
       div.className='cell rock'+(affordable?' rock-breakable':'');
-      div.innerHTML=`<div class="rock-icon">🪨</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
+      div.innerHTML=`<div class="rock-icon">🌿</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
@@ -674,7 +674,7 @@ function renderCards(){
 function renderInfo(){
   document.getElementById('d-turn').textContent=S.turn;
   const s=getStage(S.stage);
-  const left=Math.max(0, s.byTurn-S.turn);
+  const left=Math.max(0, s.byTurn-S.turn+1);
   const UNLOCK_D=[5,7,9,11,13,15,17];
   const minLvNow=UNLOCK_D.findIndex(d=>S.stage<d)+1||7;
   const UNLOCK_T=[0,0,3,5,7,9,11];
@@ -856,14 +856,14 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 落石：約33ターンに1回（3%確率）、通常イベントとは別枠
+  // 茨の侵食：約33ターンに1回（3%確率）、通常イベントとは別枠
   if(Math.random()<0.03){
     const empties=[];
     for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
     if(empties.length>0){
       const p=empties[Math.floor(Math.random()*empties.length)];
       S.grid[p.r][p.c]='rock';
-      return { icon:'🪨', name:'落石', msg:'落石でマスが塞がれた！', detail:'岩+1', good:false };
+      return { icon:'🌿', name:'茨の侵食', msg:'茨が生い茂りマスが塞がれた！', detail:'茨+1', good:false };
     }
   }
 
@@ -982,7 +982,7 @@ function nextTurn(){
 
   let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
   let starveMsg = S._starvation ? ` 💀飢餓！人口${S._starvation.prevPop}→${S._starvation.newPop}（-${S._starvation.loss}人）` : '';
-  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn}T`;
+  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn+1}T`;
 
   S.offered=makeOffer();render();
 
@@ -1042,14 +1042,17 @@ function showBonus(bonusMsg, nextMsg){
   document.getElementById('o-title').textContent='🎉 ステージクリア！';
   document.getElementById('o-msg').innerHTML=bonusMsg+'<br><br>'+nextMsg;
   document.getElementById('o-btn').textContent='次のステージへ ▶';
-  document.getElementById('o-btn').onclick=()=>{
+  function closeBonusAndContinue(){
     if(S._bonusTimer)clearTimeout(S._bonusTimer);
     document.getElementById('overlay').classList.remove('show');
+    S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
     S.offered=makeOffer();render();
-  };
+  }
+  document.getElementById('o-btn').onclick=closeBonusAndContinue;
   document.getElementById('overlay').classList.add('show');
   S._bonusTimer=setTimeout(()=>{
     document.getElementById('overlay').classList.remove('show');
+    S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
     S.offered=makeOffer();render();
   }, 3000);
 }
