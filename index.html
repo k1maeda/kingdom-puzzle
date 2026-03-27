@@ -582,19 +582,30 @@ function renderResPanel(){
   };
   setNx('wood', S.res.wood, nx.wood);
   setNx('stone',S.res.stone,nx.stone);
-  setNx('meat', S.res.meat, meatNext);
 
-  // pop: show consumption + starvation warning
+  // meat: show consumption info here
+  const meatEl=document.getElementById('rx-meat');
+  if(meatNext<0){
+    meatEl.textContent=`→ 0（-${consume}/T 肉不足！）`;
+    meatEl.className='res-next danger';
+  } else if(meatNext < consume * 2){
+    meatEl.textContent=`→ ${meatNext}（-${consume}/T 残りわずか）`;
+    meatEl.className='res-next neg';
+  } else {
+    const diff=meatNext-S.res.meat;
+    const sign=diff>=0?'+':'';
+    meatEl.textContent=`→ ${meatNext}（${sign}${diff}） 消費${consume}/T`;
+    meatEl.className='res-next'+(diff>0?' pos':diff<0?' neg':'');
+  }
+
+  // pop: show population change only
   const popEl=document.getElementById('rx-pop');
   if(meatNext<0){
     const popLoss=Math.max(1,Math.ceil(Math.abs(meatNext)));
-    popEl.textContent=`⚠ 飢餓！人口-${popLoss}（肉不足${Math.abs(meatNext)}）`;
+    popEl.textContent=`⚠ 飢餓！人口-${popLoss}`;
     popEl.className='res-next danger';
-  } else if(meatNext<consume){
-    popEl.textContent=`⚠ 肉残りわずか！消費-${consume}/T`;
-    popEl.className='res-next neg';
   } else {
-    popEl.textContent=`消費 -${consume}/T（人口÷3）`;
+    popEl.textContent=`人口÷3 = 消費${consume}/T`;
     popEl.className='res-next';
   }
 }
