@@ -210,13 +210,17 @@
 
   /* ── Rock Cell ── */
   .cell.rock {
-    background: linear-gradient(145deg,#1A2A3A,#0F1F2A) !important;
-    border: 2px solid #2A4A5A; cursor: default;
+    background: linear-gradient(145deg,#1A3A4A,#0A2530) !important;
+    background-image: linear-gradient(145deg,#1A3A4A,#0A2530),
+      radial-gradient(ellipse at 30% 60%, rgba(80,160,200,0.25) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 40%, rgba(60,140,180,0.2) 0%, transparent 50%) !important;
+    border: 2px solid #3A6A7A; cursor: default;
+    overflow: hidden; position: relative;
   }
   .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
-  .cell.rock .rock-label { font-size:0.38rem; color:#888; margin-top:2px; }
-  .cell.rock.rock-breakable { border-color:#8A7030; cursor:pointer; }
-  .cell.rock.rock-breakable .rock-label { color:#C0A060; }
+  .cell.rock .rock-label { font-size:0.6rem; color:#8AC0D0; margin-top:3px; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .cell.rock.rock-breakable { border-color:#6AA030; cursor:pointer; box-shadow: 0 0 8px rgba(100,180,60,0.4); }
+  .cell.rock.rock-breakable .rock-label { color:#C0E060; }
 
   /* ── Turn Banner ── */
   .turn-banner {
@@ -620,7 +624,7 @@ function renderGrid(){
       const rc=rockBreakCost();
       const affordable=canBreakRock();
       div.className='cell rock'+(affordable?' rock-breakable':'');
-      div.innerHTML=`<div class="rock-icon">🏚️</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
+      div.innerHTML=`<div class="rock-icon">🌊</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
