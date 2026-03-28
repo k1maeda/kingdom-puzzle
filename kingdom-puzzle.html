@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.1</title>
+<title>王国パズル v5.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.1</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.2</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -488,7 +488,9 @@ function initState(){
     msg:'建物カードを選んで空きマスに配置しよう！',
     gameOver:false,gameWon:false,maxPop:0,
     lastEvent:null,
-    hero:{ r:-1, c:-1, atk:3, def:2, weapon:0, armor:0, placed:false },
+    hero:{ r:-1, c:-1, atk:3, def:2, weapon:0, armor:0, placed:false,
+           hp:20, maxHp:20, stunTurns:0 },
+    enemyHp:{}, // key='r,c' → hp remaining
     battleLog:null,
   };
   placeEnemies(enemyCount(0));
@@ -748,8 +750,9 @@ function renderGrid(){
     // 外敵セル
     if(bid==='enemy'){
       div.className='cell enemy';
-      const eStr=getEnemyStr();
-      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵</div><div class="enemy-cost">💪${eStr}</div>`;
+      const eHp=getEnemyHp(r,c);
+      const eMax=getEnemyMaxHp();
+      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵 💪${getEnemyStr()}</div><div class="enemy-cost">HP ${eHp}/${eMax}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
@@ -804,11 +807,21 @@ function isHeroMovable(r,c){
 
 function getHeroAtk(){ return S.hero.atk + S.hero.weapon * 2; }
 function getHeroDef(){ return S.hero.def + S.hero.armor * 1; }
+function getHeroMaxHp(){ return 20 + S.hero.armor * 5; }
 function getEnemyStr(){ return 3 + S.stage * 2; }
+function getEnemyMaxHp(){ return 8 + S.stage * 4; }
+
+function getEnemyHp(r,c){
+  const key=r+','+c;
+  if(S.enemyHp[key]===undefined) S.enemyHp[key]=getEnemyMaxHp();
+  return S.enemyHp[key];
+}
+function setEnemyHp(r,c,hp){ S.enemyHp[r+','+c]=hp; }
+function removeEnemyHp(r,c){ delete S.enemyHp[r+','+c]; }
 
 function heroBattle(){
-  // 勇者の上下左右の外敵と戦闘
-  if(!S.hero.placed) return null;
+  // 勇者がスタン中は戦闘なし
+  if(!S.hero.placed || S.hero.stunTurns>0) return null;
   const adj=[[0,1],[0,-1],[1,0],[-1,0]];
   const enemies=[];
   for(const [dr,dc] of adj){
@@ -816,26 +829,70 @@ function heroBattle(){
     if(nr>=0&&nr<5&&nc>=0&&nc<5&&S.grid[nr][nc]==='enemy') enemies.push({r:nr,c:nc});
   }
   if(enemies.length===0) return null;
-  // 最初の1体と戦闘
-  const target=enemies[0];
-  const heroP=getHeroAtk()+Math.floor(Math.random()*4);
-  const enemyP=getEnemyStr();
-  if(heroP>enemyP){
-    S.grid[target.r][target.c]=null;
-    return {win:true, msg:`⚔️ 勇者が外敵を討伐！（${heroP} vs ${enemyP}）`};
-  } else {
-    return {win:false, msg:`🛡️ 勇者は外敵に阻まれた…（${heroP} vs ${enemyP}）`};
+
+  // 最初の1体と戦闘（HP削り合い）
+  const t=enemies[0];
+  const heroDmg=Math.max(1, getHeroAtk() - Math.floor(getEnemyStr()/3) + Math.floor(Math.random()*3));
+  const enemyDmg=Math.max(1, getEnemyStr() - getHeroDef() + Math.floor(Math.random()*3));
+
+  // 勇者が敵を攻撃
+  let eHp=getEnemyHp(t.r,t.c);
+  eHp-=heroDmg;
+
+  // 敵が勇者を攻撃
+  S.hero.hp-=enemyDmg;
+
+  let msgs=[];
+  msgs.push(`⚔️ 勇者→外敵 ${heroDmg}ダメージ`);
+  msgs.push(`👹 外敵→勇者 ${enemyDmg}ダメージ`);
+
+  if(eHp<=0){
+    // 敵撃破
+    S.grid[t.r][t.c]=null;
+    removeEnemyHp(t.r,t.c);
+    msgs.push('🎉 外敵を撃破！');
+    return {win:true, killed:true, msg:msgs.join(' / ')};
   }
+  setEnemyHp(t.r,t.c,eHp);
+
+  if(S.hero.hp<=0){
+    // 勇者敗北
+    S.hero.hp=0;
+    // 装備ダウングレード
+    let downMsg='';
+    if(S.hero.weapon>0){ S.hero.weapon--; downMsg+=' ⚔️武器Lv↓'; }
+    if(S.hero.armor>0){ S.hero.armor--; downMsg+=' 🛡️防具Lv↓'; }
+    // 勇者がいた建物を破壊
+    const heroBid=S.grid[S.hero.r][S.hero.c];
+    if(heroBid && heroBid!=='enemy'){
+      const bName=B[heroBid]?B[heroBid].name:'建物';
+      S.grid[S.hero.r][S.hero.c]='enemy';
+      msgs.push(`💥 ${bName}が外敵に占拠された！`);
+    }
+    // スタン：HP全回復まで行動不能
+    S.hero.stunTurns=Math.ceil(getHeroMaxHp()/4); // 約5ターンで全回復
+    S.hero.r=-1; S.hero.c=-1; S.hero.placed=false;
+    msgs.push(`💀 勇者が倒れた！${S.hero.stunTurns}ターン回復中${downMsg}`);
+    return {win:false, killed:false, heroDown:true, msg:msgs.join(' / ')};
+  }
+
+  msgs.push(`勇者HP:${S.hero.hp}/${getHeroMaxHp()} 敵HP:${eHp}/${getEnemyMaxHp()}`);
+  return {win:false, killed:false, msg:msgs.join(' / ')};
 }
 
 function startHeroMovePhase(){
+  if(S.hero.stunTurns>0){
+    // スタン中→回復処理はnextTurnで
+    nextTurn();
+    return;
+  }
   if(!S.hero.placed){
     // 勇者未配置→スキップしてターン進行
     nextTurn();
     return;
   }
   S.phase='hero_move';
-  S.msg='🗡️ 勇者を移動させてください（隣接1マス）';
+  S.msg=`🗡️ 勇者を移動させてください（HP:${S.hero.hp}/${getHeroMaxHp()}）`;
   render();
 }
 
@@ -921,7 +978,14 @@ function renderEquipShop(){
   const aCost=(h.armor+1)*10;
   const wMax=h.weapon>=5;
   const aMax=h.armor>=5;
+  const stunMsg=h.stunTurns>0?`<div style="color:#F88;font-size:0.6rem;">💀 回復中 残り${h.stunTurns}ターン</div>`:'';
+  const hpBar=h.placed||h.stunTurns>0?`<div style="font-size:0.6rem;color:${h.hp<getHeroMaxHp()/3?'#F66':h.hp<getHeroMaxHp()*2/3?'#FA0':'#6F6'};">❤️ ${h.hp}/${getHeroMaxHp()}</div>`:'';
   ep.innerHTML=`
+    <div class="equip-item">
+      <div class="eq-icon">🗡️</div>
+      <div class="eq-name">勇者</div>
+      ${hpBar}${stunMsg}
+    </div>
     <div class="equip-item">
       <div class="eq-icon">⚔️</div>
       <div class="eq-name">武器 Lv${h.weapon}</div>
@@ -936,8 +1000,8 @@ function renderEquipShop(){
     </div>
     <div class="equip-item">
       <div class="eq-icon">👹</div>
-      <div class="eq-name">外敵の強さ</div>
-      <div class="eq-stat">${getEnemyStr()}</div>
+      <div class="eq-name">外敵</div>
+      <div class="eq-stat">💪${getEnemyStr()} HP${getEnemyMaxHp()}</div>
     </div>
   `;
 }
@@ -955,7 +1019,9 @@ function upgradeArmor(){
   const cost=(S.hero.armor+1)*10;
   if(S.res.gold>=cost&&S.hero.armor<5){
     S.res.gold-=cost;S.hero.armor++;
-    S.msg=`🛡️ 防具を強化！Lv${S.hero.armor}（防御力${getHeroDef()}）`;
+    // maxHpも増えるのでHP回復
+    S.hero.hp=Math.min(S.hero.hp+5, getHeroMaxHp());
+    S.msg=`🛡️ 防具を強化！Lv${S.hero.armor}（防御力${getHeroDef()} HP上限${getHeroMaxHp()}）`;
     render();
   }
 }
@@ -1277,6 +1343,19 @@ function nextTurn(){
     S.gameOver=true;
     showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);
     return;
+  }
+
+  // 勇者のHP自然回復（毎ターン4回復、スタン中も回復）
+  if(S.hero.placed || S.hero.stunTurns>0){
+    const maxHp=getHeroMaxHp();
+    S.hero.hp=Math.min(maxHp, S.hero.hp+4);
+    // スタン回復
+    if(S.hero.stunTurns>0){
+      S.hero.stunTurns--;
+      if(S.hero.stunTurns===0){
+        S.hero.hp=maxHp; // 全回復して復活
+      }
+    }
   }
 
   // 外敵の自動侵食: ステージ×1%（最大5%）、ターン5以降
