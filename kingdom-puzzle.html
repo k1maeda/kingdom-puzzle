@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.8</title>
+<title>王国パズル v6.9</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -373,7 +373,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.8</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.9</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -1025,28 +1025,32 @@ function startHeroMovePhase(){
   render();
 }
 
-function heroMove(r,c){
-  if(!isHeroMovable(r,c)) return;
-  S.hero.r=r; S.hero.c=c;
-  // 移動後、隣接外敵と自動戦闘
-  const result=heroBattle();
+function afterBattle(result){
   S.battleLog=result;
   S.phase='idle';
   if(result){
     S.msg=result.msg;
-  } else {
-    S.msg='🗡️ 勇者を移動しました。';
+    render();
+    if(result.killed){
+      // レベルアップ演出を見せてからターン進行
+      setTimeout(()=>nextTurn(), 2600);
+      return;
+    }
   }
   nextTurn();
 }
 
-function skipHeroMove(){
-  // 移動スキップでも戦闘は発生（現在位置の隣接）
+function heroMove(r,c){
+  if(!isHeroMovable(r,c)) return;
+  S.hero.r=r; S.hero.c=c;
   const result=heroBattle();
-  S.battleLog=result;
-  S.phase='idle';
-  if(result) S.msg=result.msg;
-  nextTurn();
+  if(!result) S.msg='🗡️ 勇者を移動しました。';
+  afterBattle(result);
+}
+
+function skipHeroMove(){
+  const result=heroBattle();
+  afterBattle(result);
 }
 
 function isMergeTarget(r,c){
