@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.0</title>
+<title>王国パズル v6.1</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -320,7 +320,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.0</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.1</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -506,7 +506,7 @@ function initState(){
   S.offered=makeOffer();
 }
 
-function enemyCount(stage){ return Math.min(4, 1 + stage); }
+function enemyCount(stage){ return 1; }
 
 function placeEnemies(count){
   // 上部（row 0）から固まって配置。row 0が埋まったらrow 1へ
@@ -863,8 +863,8 @@ function isHeroMovable(r,c){
 function getHeroAtk(){ return S.hero.atk + S.hero.weapon * 2; }
 function getHeroDef(){ return S.hero.def + S.hero.armor * 1; }
 function getHeroMaxHp(){ return 20 + S.hero.armor * 5; }
-function getEnemyStr(){ return 7 + S.stage * 4; }
-function getEnemyMaxHp(){ return 15 + S.stage * 8; }
+function getEnemyStr(){ return 7 + S.stage * 6; }
+function getEnemyMaxHp(){ return 15 + S.stage * 12; }
 
 function getEnemyHp(r,c){
   const key=r+','+c;
