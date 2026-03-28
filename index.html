@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.9</title>
+<title>王国パズル v6.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -320,7 +320,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.9</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.0</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -1032,8 +1032,8 @@ function renderEquipShop(){
   const h=S.hero;
   const wCost=(h.weapon+1)*10;
   const aCost=(h.armor+1)*10;
-  const wMax=h.weapon>=5;
-  const aMax=h.armor>=5;
+  const wMax=false;
+  const aMax=false;
   const stunMsg=h.stunTurns>0?`<div style="color:#F88;font-size:0.6rem;">💀 回復中 残り${h.stunTurns}ターン</div>`:'';
   const hpBar=h.placed||h.stunTurns>0?`<div style="font-size:0.6rem;color:${h.hp<getHeroMaxHp()/3?'#F66':h.hp<getHeroMaxHp()*2/3?'#FA0':'#6F6'};">❤️ ${h.hp}/${getHeroMaxHp()}</div>`:'';
   ep.innerHTML=`
@@ -1064,7 +1064,7 @@ function renderEquipShop(){
 
 function upgradeWeapon(){
   const cost=(S.hero.weapon+1)*10;
-  if(S.res.gold>=cost&&S.hero.weapon<5){
+  if(S.res.gold>=cost){
     S.res.gold-=cost;S.hero.weapon++;
     S.msg=`⚔️ 武器を強化！Lv${S.hero.weapon}（攻撃力${getHeroAtk()}）`;
     render();
@@ -1073,7 +1073,7 @@ function upgradeWeapon(){
 
 function upgradeArmor(){
   const cost=(S.hero.armor+1)*10;
-  if(S.res.gold>=cost&&S.hero.armor<5){
+  if(S.res.gold>=cost){
     S.res.gold-=cost;S.hero.armor++;
     // maxHpも増えるのでHP回復
     S.hero.hp=Math.min(S.hero.hp+5, getHeroMaxHp());
