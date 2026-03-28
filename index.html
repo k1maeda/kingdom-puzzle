@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.3</title>
+<title>王国パズル v5.4</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.3</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.4</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -880,14 +880,15 @@ function heroBattle(){
   return {win:false, killed:false, msg:msgs.join(' / ')};
 }
 
-function startHeroMovePhase(){
-  if(S.hero.stunTurns>0){
-    // スタン中→回復処理はnextTurnで
-    nextTurn();
-    return;
+function hasEnemiesOnGrid(){
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    if(S.grid[r][c]==='enemy') return true;
   }
-  if(!S.hero.placed){
-    // 勇者未配置→スキップしてターン進行
+  return false;
+}
+
+function startHeroMovePhase(){
+  if(S.hero.stunTurns>0 || !S.hero.placed || !hasEnemiesOnGrid()){
     nextTurn();
     return;
   }
