@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.8</title>
+<title>王国パズル v5.9</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -220,6 +220,15 @@
   .cell.enemy .enemy-cost { font-size:0.45rem; color:#CC8060; margin-top:1px; }
   .cell.enemy.enemy-affordable { border-color:#C06020; cursor:pointer; box-shadow: 0 0 8px rgba(200,100,40,0.5); }
   .cell.enemy.enemy-affordable .enemy-label { color:#FFB060; }
+
+  /* 外敵隣接警告 */
+  .enemy-warn {
+    position:absolute; top:2px; right:2px;
+    font-size:0.8rem; color:#FF4040;
+    animation: warnBlink 1.5s ease-in-out infinite;
+    text-shadow: 0 0 4px rgba(255,60,60,0.8);
+  }
+  @keyframes warnBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
   @keyframes enemyPulse {
     0%,100%{box-shadow:0 0 4px rgba(150,30,30,0.3)} 50%{box-shadow:0 0 12px rgba(200,40,40,0.5)}
   }
@@ -311,7 +320,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.8</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.9</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -809,6 +818,22 @@ function renderGrid(){
       }
     } else {
       if(S.phase==='placing')div.classList.add('can-place');
+    }
+    // 外敵隣接警告（建物がある場合のみ）
+    if(bid && bid!=='enemy'){
+      const adjE=[[0,1],[0,-1],[1,0],[-1,0]];
+      let nearEnemy=false;
+      for(const [dr,dc] of adjE){
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5&&S.grid[nr][nc]==='enemy') nearEnemy=true;
+      }
+      if(nearEnemy){
+        const warn=document.createElement('div');
+        warn.className='enemy-warn';
+        warn.textContent='⚠';
+        warn.title='外敵が隣接！次の段階で攻め込まれる危険';
+        div.appendChild(warn);
+      }
     }
     // 勇者オーバーレイ
     if(S.hero.placed && S.hero.r===r && S.hero.c===c){
