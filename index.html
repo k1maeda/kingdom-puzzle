@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.6</title>
+<title>王国パズル v5.7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.6</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.7</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -500,14 +500,44 @@ function initState(){
 function enemyCount(stage){ return Math.min(4, 1 + stage); }
 
 function placeEnemies(count){
-  // 端（辺）の空きマスに配置
-  const edges=[];
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    if(!S.grid[r][c] && (r===0||r===4||c===0||c===4)) edges.push({r,c});
+  // 上部（row 0）から固まって配置。row 0が埋まったらrow 1へ
+  const placed=[];
+  // まず最初の1体を上部の空きマスにランダム配置
+  const topEmpty=[];
+  for(let c=0;c<5;c++){
+    if(!S.grid[0][c]) topEmpty.push({r:0,c});
   }
-  edges.sort(()=>Math.random()-0.5);
-  for(let i=0;i<Math.min(count,edges.length);i++){
-    S.grid[edges[i].r][edges[i].c]='enemy';
+  if(topEmpty.length===0){
+    // row 0が全部埋まってたらrow 1
+    for(let c=0;c<5;c++){ if(!S.grid[1][c]) topEmpty.push({r:1,c}); }
+  }
+  if(topEmpty.length===0) return;
+  const start=topEmpty[Math.floor(Math.random()*topEmpty.length)];
+  S.grid[start.r][start.c]='enemy';
+  placed.push(start);
+
+  // 残りは既存の外敵に隣接する空きマスに配置（固まる）
+  const adj=[[0,1],[0,-1],[1,0],[-1,0]];
+  for(let i=1;i<count;i++){
+    const candidates=[];
+    for(const p of placed){
+      for(const [dr,dc] of adj){
+        const nr=p.r+dr, nc=p.c+dc;
+        if(nr<0||nr>=5||nc<0||nc>=5) continue;
+        if(S.grid[nr][nc]) continue;
+        if(placed.some(q=>q.r===nr&&q.c===nc)) continue;
+        // 上寄りを優先（重み付け）
+        candidates.push({r:nr,c:nc,w:5-nr});
+      }
+    }
+    if(candidates.length===0) break;
+    // 上寄り重み付きランダム
+    const totalW=candidates.reduce((s,x)=>s+x.w,0);
+    let roll=Math.random()*totalW;
+    let pick=candidates[0];
+    for(const c of candidates){ roll-=c.w; if(roll<=0){pick=c;break;} }
+    S.grid[pick.r][pick.c]='enemy';
+    placed.push(pick);
   }
 }
 
