@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.9</title>
+<title>王国パズル v7.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -373,7 +373,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.9</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v7.0</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -990,13 +990,17 @@ function heroBattle(){
     let downMsg='';
     if(S.hero.weapon>0){ S.hero.weapon--; downMsg+=' ⚔️武器Lv↓'; }
     if(S.hero.armor>0){ S.hero.armor--; downMsg+=' 🛡️防具Lv↓'; }
-    // 勇者がいた建物を破壊
+    // 敵が勇者のいた場所に移動（元の場所は空く）
     const heroBid=S.grid[S.hero.r][S.hero.c];
     if(heroBid && heroBid!=='enemy'){
       const bName=B[heroBid]?B[heroBid].name:'建物';
-      S.grid[S.hero.r][S.hero.c]='enemy';
       msgs.push(`💥 ${bName}が外敵に占拠された！`);
     }
+    // 敵を元の位置から移動
+    S.grid[t.r][t.c]=null;
+    removeEnemyHp(t.r,t.c);
+    S.grid[S.hero.r][S.hero.c]='enemy';
+    setEnemyHp(S.hero.r,S.hero.c, eHp); // 残HPを引き継ぐ
     // スタン：HP全回復まで行動不能
     S.hero.stunTurns=Math.ceil(getHeroMaxHp()/4); // 約5ターンで全回復
     S.hero.r=-1; S.hero.c=-1; S.hero.placed=false;
