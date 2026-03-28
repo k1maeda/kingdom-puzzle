@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.4</title>
+<title>王国パズル v6.5</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -314,13 +314,49 @@
     70%{opacity:1} 100%{opacity:0;transform:scale(1.05)}
   }
 
+  /* レベルアップ演出 */
+  .levelup-banner {
+    position:fixed; top:0; left:0; right:0; bottom:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.75); z-index:160; pointer-events:none;
+    animation: lvupAnim 1.5s ease-out forwards;
+  }
+  .levelup-banner .lvup-icon { font-size:3rem; }
+  .levelup-banner .lvup-text {
+    font-family:'Cinzel Decorative',serif; font-size:1.8rem; color:#FFD700;
+    text-shadow:0 0 30px rgba(255,215,0,0.8), 0 0 60px rgba(255,215,0,0.4);
+    margin-top:8px;
+  }
+  .levelup-banner .lvup-detail {
+    font-size:0.9rem; color:#F0DCA0; margin-top:6px;
+  }
+  @keyframes lvupAnim {
+    0%{opacity:0;transform:scale(0.5)} 10%{opacity:1;transform:scale(1.1)}
+    20%{transform:scale(1)} 75%{opacity:1} 100%{opacity:0}
+  }
+
+  /* 勇者HPバー（グリッド上） */
+  .hero-hp-bar {
+    position:absolute; bottom:2px; left:4px; right:4px; height:4px;
+    background:#333; border-radius:2px; overflow:hidden;
+  }
+  .hero-hp-fill {
+    height:100%; border-radius:2px;
+    transition: width 0.3s;
+  }
+  .hero-hp-text {
+    position:absolute; bottom:7px; left:0; right:0;
+    text-align:center; font-size:0.45rem; color:#FFF;
+    text-shadow:0 1px 2px rgba(0,0,0,0.8);
+  }
+
   /* ── Event flash on message bar ── */
   .message.event-good { border-color:#4A7030; background:rgba(10,40,10,0.75); color:#90E070; }
   .message.event-bad  { border-color:#7A3020; background:rgba(40,10,10,0.75); color:#FF9070; }
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.4</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.5</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -847,7 +883,11 @@ function renderGrid(){
       div.classList.add('hero-here');
       const ho=document.createElement('div');
       ho.className='hero-overlay';
-      ho.innerHTML='<div class="hero-badge">🗡️</div>';
+      const hpPct=Math.round(S.hero.hp/getHeroMaxHp()*100);
+      const hpColor=hpPct>60?'#4CAF50':hpPct>30?'#FF9800':'#F44336';
+      ho.innerHTML=`<div class="hero-badge">🗡️</div>
+        <div class="hero-hp-text">HP ${S.hero.hp}/${getHeroMaxHp()}</div>
+        <div class="hero-hp-bar"><div class="hero-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
       div.appendChild(ho);
     }
     // 勇者移動候補ハイライト
@@ -869,7 +909,7 @@ function isHeroMovable(r,c){
 
 function getHeroAtk(){ return S.hero.atk + S.hero.weapon * 2; }
 function getHeroDef(){ return S.hero.def + S.hero.armor * 1; }
-function getHeroMaxHp(){ return 20 + (S.hero.level - 1) * 8 + S.hero.armor * 5; }
+function getHeroMaxHp(){ return 20 + (S.hero.level - 1) * 8; }
 function getEnemyStr(){ return 7 + S.stage * 6; }
 function getEnemyMaxHp(){ return 15 + S.stage * 12; }
 
@@ -914,8 +954,8 @@ function heroBattle(){
     removeEnemyHp(t.r,t.c);
     S.hero.kills++;
     S.hero.level++;
-    const oldMax=getHeroMaxHp()-8; // 上がる前のmaxHp
     S.hero.hp=Math.min(S.hero.hp+8, getHeroMaxHp()); // レベルアップ分HP回復
+    showLevelUpBanner(S.hero.level, getHeroMaxHp());
     msgs.push(`🎉 外敵を撃破！ Lv${S.hero.level}に上昇！（HP上限${getHeroMaxHp()}）`);
     return {win:true, killed:true, msg:msgs.join(' / ')};
   }
@@ -1087,7 +1127,7 @@ function upgradeArmor(){
   if(S.res.gold>=cost){
     S.res.gold-=cost;S.hero.armor++;
     // maxHpも増えるのでHP回復
-    S.hero.hp=Math.min(S.hero.hp+5, getHeroMaxHp());
+    // 防具はHPに影響しない（防御力のみ）
     S.msg=`🛡️ 防具を強化！Lv${S.hero.armor}（防御力${getHeroDef()} HP上限${getHeroMaxHp()}）`;
     render();
   }
@@ -1330,6 +1370,18 @@ function defeatEnemy(r,c){
 }
 
 // ── TURN BANNER ──
+function showLevelUpBanner(level, maxHp){
+  const el=document.getElementById('turnBanner');
+  el.className='levelup-banner';
+  el.innerHTML=`
+    <div class="lvup-icon">⬆️</div>
+    <div class="lvup-text">LEVEL UP!</div>
+    <div class="lvup-detail">勇者 Lv${level}　HP上限 ${maxHp}</div>
+  `;
+  el.style.display='flex';
+  el.onanimationend=()=>{ el.style.display='none'; };
+}
+
 function showTurnBanner(turnNum, eventInfo){
   const el=document.getElementById('turnBanner');
   el.className='turn-banner';
