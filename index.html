@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.0</title>
+<title>王国パズル v5.1</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.0</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.1</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -747,10 +747,9 @@ function renderGrid(){
     const div=document.createElement('div');
     // 外敵セル
     if(bid==='enemy'){
-      const rc=enemyDefeatCost();
-      const affordable=canDefeatEnemy();
-      div.className='cell enemy'+(affordable?' enemy-affordable':'');
-      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵</div><div class="enemy-cost">⚔🪵${rc.wood}🪨${rc.stone}</div>`;
+      div.className='cell enemy';
+      const eStr=getEnemyStr();
+      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵</div><div class="enemy-cost">💪${eStr}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
@@ -1030,17 +1029,10 @@ function onCell(r,c){
     return;
   }
 
-  // ── 外敵セル：討伐アクション ──
+  // ── 外敵セル：勇者でのみ討伐可能 ──
   if(bid==='enemy'){
-    const cost=enemyDefeatCost();
-    if(canDefeatEnemy()){
-      if(confirm(`外敵を討伐しますか？\n必要資源: 🪵${cost.wood} 🪨${cost.stone}`)){
-        defeatEnemy(r,c);
-      }
-    } else {
-      S.msg=`👹 討伐には 🪵${cost.wood} 🪨${cost.stone} 必要`;
-      render();
-    }
+    S.msg='👹 外敵は勇者を隣に移動させて戦闘でのみ倒せます！';
+    render();
     return;
   }
 
