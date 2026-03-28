@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v8.3</title>
+<title>王国パズル v8.5</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -248,7 +248,7 @@
   .cell.enemy.enemy-affordable { border-color:#C06020; cursor:pointer; box-shadow: 0 0 8px rgba(200,100,40,0.5); }
   .cell.enemy.enemy-affordable .enemy-label { color:#FFB060; }
 
-  /* 外敵隣接警告 */
+  /* ドラゴン隣接警告 */
   .enemy-warn {
     position:absolute; top:2px; right:2px;
     font-size:0.8rem; color:#FF4040;
@@ -362,7 +362,7 @@
     15%{transform:scale(1)} 80%{opacity:1} 100%{opacity:0}
   }
 
-  /* 勇者HPバー（グリッド上） */
+  /* 城主HPバー（グリッド上） */
   .hero-hp-bar {
     position:absolute; bottom:2px; left:4px; right:4px; height:4px;
     background:#333; border-radius:2px; overflow:hidden;
@@ -383,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.3</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.5</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -391,7 +391,7 @@
   </div>
 
   <div class="grid-wrap">
-    <div class="enemy-spawn-bar">👹 外敵の侵入方向 ▼▼▼</div>
+    <div class="enemy-spawn-bar">🐉 ドラゴンの侵入方向 ▼▼▼</div>
     <div class="grid" id="grid"></div>
   </div>
 
@@ -592,7 +592,7 @@ function placeEnemies(count){
   S.grid[start.r][start.c]='enemy';
   placed.push(start);
 
-  // 残りは既存の外敵に隣接する空きマスに配置（固まる）
+  // 残りは既存のドラゴンに隣接する空きマスに配置（固まる）
   const adj=[[0,1],[0,-1],[1,0],[-1,0]];
   for(let i=1;i<count;i++){
     const candidates=[];
@@ -618,7 +618,7 @@ function placeEnemies(count){
 }
 
 // 全敵を城（4,2）に向かって1マス移動
-// 建物は破壊、勇者マスには移動不可
+// 建物は破壊、城主マスには移動不可
 // 城に到達したらゲームオーバー
 function moveEnemies(){
   const msgs=[];
@@ -640,19 +640,19 @@ function moveEnemies(){
     for(const t of targets){
       if(t.r<0||t.r>=5||t.c<0||t.c>=5) continue;
       const tBid=S.grid[t.r][t.c];
-      // 勇者がいるマスには移動不可
+      // 城主がいるマスには移動不可
       if(S.hero.placed && S.hero.r===t.r && S.hero.c===t.c) continue;
       // 他の敵がいるマスには移動不可
       if(tBid==='enemy') continue;
       // 城に到達！
       if(tBid==='castle'){
         S.gameOver=true;
-        msgs.push('💀 外敵が城に到達した！');
+        msgs.push('💀 ドラゴンが城に到達した！');
         return msgs;
       }
       // 建物を破壊して移動
       if(tBid && B[tBid]){
-        msgs.push(`💥 外敵が${B[tBid].name}を破壊！`);
+        msgs.push(`💥 ドラゴンが${B[tBid].name}を破壊！`);
       }
       // 移動実行
       S.grid[r][c]=null;
@@ -676,7 +676,7 @@ function triggerWave(){
   // 2. 新敵出現
   S.stage++;
   placeEnemies(1);
-  msgs.push(`👹 ウェーブ${S.stage}！ 新たな外敵が現れた！（💪${getEnemyStr()} HP${getEnemyMaxHp()}）`);
+  msgs.push(`🐉 ウェーブ${S.stage}！ 新たなドラゴンが現れた！（💪${getEnemyStr()} HP${getEnemyMaxHp()}）`);
   return msgs;
 }
 
@@ -888,14 +888,14 @@ function renderGrid(){
     if(bid==='castle'){
       div.className='cell castle';
       div.innerHTML='<div class="castle-icon">🏰</div><div class="castle-label">城</div>';
-      // 勇者が城の上にいる場合
+      // 城主が城の上にいる場合
       if(S.hero.placed && S.hero.r===r && S.hero.c===c){
         div.classList.add('hero-here');
         const ho=document.createElement('div');
         ho.className='hero-overlay';
         const hpPct=Math.round(S.hero.hp/getHeroMaxHp()*100);
         const hpColor=hpPct>60?'#4CAF50':hpPct>30?'#FF9800':'#F44336';
-        ho.innerHTML=`<div class="hero-badge">🗡️</div>
+        ho.innerHTML=`<div class="hero-badge">👑</div>
           <div class="hero-hp-text">HP ${S.hero.hp}/${getHeroMaxHp()}</div>
           <div class="hero-hp-bar"><div class="hero-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
         div.appendChild(ho);
@@ -906,14 +906,14 @@ function renderGrid(){
       div.addEventListener('click',()=>onCell(r,c));
       g.appendChild(div);continue;
     }
-    // 外敵セル
+    // ドラゴンセル
     if(bid==='enemy'){
       div.className='cell enemy';
       const eHp=getEnemyHp(r,c);
       const eMax=getEnemyMaxHp();
       const ePct=Math.round(eHp/eMax*100);
       const eColor=ePct>60?'#9C27B0':ePct>30?'#E91E63':'#F44336';
-      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵 💪${getEnemyStr()}</div>
+      div.innerHTML=`<div class="enemy-icon">🐉</div><div class="enemy-label">ドラゴン 💪${getEnemyStr()}</div>
         <div class="enemy-hp-text">HP ${eHp}/${eMax}</div>
         <div class="enemy-hp-bar"><div class="enemy-hp-fill" style="width:${ePct}%;background:${eColor}"></div></div>`;
       div.onclick=()=>onCell(r,c);
@@ -943,7 +943,7 @@ function renderGrid(){
     } else {
       if(S.phase==='placing')div.classList.add('can-place');
     }
-    // 外敵隣接警告（建物がある場合のみ）
+    // ドラゴン隣接警告（建物がある場合のみ）
     if(bid && bid!=='enemy'&&bid!=='castle'){
       const adjE=[[0,1],[0,-1],[1,0],[-1,0]];
       let nearEnemy=false;
@@ -955,23 +955,23 @@ function renderGrid(){
         const warn=document.createElement('div');
         warn.className='enemy-warn';
         warn.textContent='⚠';
-        warn.title='外敵が隣接！次の段階で攻め込まれる危険';
+        warn.title='ドラゴンが隣接！次の段階で攻め込まれる危険';
         div.appendChild(warn);
       }
     }
-    // 勇者オーバーレイ
+    // 城主オーバーレイ
     if(S.hero.placed && S.hero.r===r && S.hero.c===c){
       div.classList.add('hero-here');
       const ho=document.createElement('div');
       ho.className='hero-overlay';
       const hpPct=Math.round(S.hero.hp/getHeroMaxHp()*100);
       const hpColor=hpPct>60?'#4CAF50':hpPct>30?'#FF9800':'#F44336';
-      ho.innerHTML=`<div class="hero-badge">🗡️</div>
+      ho.innerHTML=`<div class="hero-badge">👑</div>
         <div class="hero-hp-text">HP ${S.hero.hp}/${getHeroMaxHp()}</div>
         <div class="hero-hp-bar"><div class="hero-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
       div.appendChild(ho);
     }
-    // 勇者移動候補ハイライト
+    // 城主移動候補ハイライト
     if(S.phase==='hero_move' && isHeroMovable(r,c)){
       div.classList.add('hero-movable');
     }
@@ -984,7 +984,7 @@ function isHeroMovable(r,c){
   if(!S.hero.placed) return false;
   const dr=Math.abs(r-S.hero.r), dc=Math.abs(c-S.hero.c);
   if(dr+dc!==1) return false; // 隣接1マスのみ
-  if(S.grid[r][c]==='enemy') return false; // 外敵マスには入れない
+  if(S.grid[r][c]==='enemy') return false; // ドラゴンマスには入れない
   return true;
 }
 
@@ -1003,7 +1003,7 @@ function setEnemyHp(r,c,hp){ S.enemyHp[r+','+c]=hp; }
 function removeEnemyHp(r,c){ delete S.enemyHp[r+','+c]; }
 
 function heroBattle(){
-  // 勇者がスタン中は戦闘なし
+  // 城主がスタン中は戦闘なし
   if(!S.hero.placed || S.hero.stunTurns>0) return null;
   const adj=[[0,1],[0,-1],[1,0],[-1,0]];
   const enemies=[];
@@ -1018,16 +1018,16 @@ function heroBattle(){
   const heroDmg=Math.max(1, getHeroAtk() - Math.floor(getEnemyStr()/3) + Math.floor(Math.random()*3));
   const enemyDmg=Math.max(1, getEnemyStr() - getHeroDef() + Math.floor(Math.random()*3));
 
-  // 勇者が敵を攻撃
+  // 城主が敵を攻撃
   let eHp=getEnemyHp(t.r,t.c);
   eHp-=heroDmg;
 
-  // 敵が勇者を攻撃
+  // 敵が城主を攻撃
   S.hero.hp-=enemyDmg;
 
   let msgs=[];
-  msgs.push(`⚔️ 勇者→外敵 ${heroDmg}ダメージ`);
-  msgs.push(`👹 外敵→勇者 ${enemyDmg}ダメージ`);
+  msgs.push(`⚔️ 城主→ドラゴン ${heroDmg}ダメージ`);
+  msgs.push(`🐉 ドラゴン→城主 ${enemyDmg}ダメージ`);
 
   if(eHp<=0){
     // 敵撃破 → レベルアップ
@@ -1037,23 +1037,23 @@ function heroBattle(){
     S.hero.level++;
     S.hero.hp=Math.min(S.hero.hp+8, getHeroMaxHp()); // レベルアップ分HP回復
     showLevelUpBanner(S.hero.level, getHeroMaxHp());
-    msgs.push(`🎉 外敵を撃破！ Lv${S.hero.level}に上昇！（HP上限${getHeroMaxHp()}）`);
+    msgs.push(`🎉 ドラゴンを撃破！ Lv${S.hero.level}に上昇！（HP上限${getHeroMaxHp()}）`);
     return {win:true, killed:true, msg:msgs.join(' / ')};
   }
   setEnemyHp(t.r,t.c,eHp);
 
   if(S.hero.hp<=0){
-    // 勇者敗北
+    // 城主敗北
     S.hero.hp=0;
     // 装備ダウングレード
     let downMsg='';
     if(S.hero.weapon>0){ S.hero.weapon--; downMsg+=' ⚔️武器Lv↓'; }
     if(S.hero.armor>0){ S.hero.armor--; downMsg+=' 🛡️防具Lv↓'; }
-    // 敵が勇者のいた場所に移動（元の場所は空く）
+    // 敵が城主のいた場所に移動（元の場所は空く）
     const heroBid=S.grid[S.hero.r][S.hero.c];
     if(heroBid && heroBid!=='enemy'){
       const bName=B[heroBid]?B[heroBid].name:'建物';
-      msgs.push(`💥 ${bName}が外敵に占拠された！`);
+      msgs.push(`💥 ${bName}がドラゴンに占拠された！`);
     }
     // 敵を元の位置から移動
     S.grid[t.r][t.c]=null;
@@ -1063,11 +1063,11 @@ function heroBattle(){
     // スタン：HP全回復まで行動不能
     S.hero.stunTurns=Math.ceil(getHeroMaxHp()/4); // 約5ターンで全回復
     S.hero.r=-1; S.hero.c=-1; S.hero.placed=false;
-    msgs.push(`💀 勇者が倒れた！${S.hero.stunTurns}ターン回復中${downMsg}`);
+    msgs.push(`💀 城主が倒れた！${S.hero.stunTurns}ターン回復中${downMsg}`);
     return {win:false, killed:false, heroDown:true, msg:msgs.join(' / ')};
   }
 
-  msgs.push(`勇者HP:${S.hero.hp}/${getHeroMaxHp()} 敵HP:${eHp}/${getEnemyMaxHp()}`);
+  msgs.push(`城主HP:${S.hero.hp}/${getHeroMaxHp()} 敵HP:${eHp}/${getEnemyMaxHp()}`);
   return {win:false, killed:false, msg:msgs.join(' / ')};
 }
 
@@ -1084,7 +1084,7 @@ function startHeroMovePhase(){
     return;
   }
   S.phase='hero_move';
-  S.msg=`🗡️ 勇者を移動させてください（HP:${S.hero.hp}/${getHeroMaxHp()}）`;
+  S.msg=`👑 城主を移動させてください（HP:${S.hero.hp}/${getHeroMaxHp()}）`;
   render();
 }
 
@@ -1107,7 +1107,7 @@ function heroMove(r,c){
   if(!isHeroMovable(r,c)) return;
   S.hero.r=r; S.hero.c=c;
   const result=heroBattle();
-  if(!result) S.msg='🗡️ 勇者を移動しました。';
+  if(!result) S.msg='👑 城主を移動しました。';
   afterBattle(result);
 }
 
@@ -1144,14 +1144,14 @@ function renderCards(){
     el.appendChild(div);
   });
 
-  // 勇者配置ボタン（未配置の場合）
+  // 城主配置ボタン（未配置の場合）
   if(!S.hero.placed){
     const hb=document.createElement('div');
     hb.className='card';
-    hb.innerHTML='<span class="c-icon">🗡️</span><span class="c-lv">勇者</span><span class="c-name">勇者を配置</span><span class="c-prod">外敵と戦える！</span><span class="c-cost">コスト無し</span>';
+    hb.innerHTML='<span class="c-icon">👑</span><span class="c-lv">城主</span><span class="c-name">城主を配置</span><span class="c-prod">ドラゴンと戦える！</span><span class="c-cost">コスト無し</span>';
     hb.addEventListener('click',()=>{
       S.phase='hero_place';
-      S.msg='🗡️ 勇者を配置するマスをタップしてください';
+      S.msg='👑 城主を配置するマスをタップしてください';
       render();
     });
     el.appendChild(hb);
@@ -1178,8 +1178,8 @@ function renderEquipShop(){
   const hpBar=h.placed||h.stunTurns>0?`<div style="font-size:0.6rem;color:${h.hp<getHeroMaxHp()/3?'#F66':h.hp<getHeroMaxHp()*2/3?'#FA0':'#6F6'};">❤️ ${h.hp}/${getHeroMaxHp()}</div>`:'';
   ep.innerHTML=`
     <div class="equip-item">
-      <div class="eq-icon">🗡️</div>
-      <div class="eq-name">勇者 Lv${h.level}</div>
+      <div class="eq-icon">👑</div>
+      <div class="eq-name">城主 Lv${h.level}</div>
       ${hpBar}${stunMsg}
     </div>
     <div class="equip-item">
@@ -1195,8 +1195,8 @@ function renderEquipShop(){
       ${aMax?'<div class="eq-btn maxed">MAX</div>':`<button class="eq-btn" onclick="upgradeArmor()" ${S.res.gold<aCost?'disabled':''}>強化 💰${aCost}</button>`}
     </div>
     <div class="equip-item">
-      <div class="eq-icon">👹</div>
-      <div class="eq-name">外敵</div>
+      <div class="eq-icon">🐉</div>
+      <div class="eq-name">ドラゴン</div>
       <div class="eq-stat">💪${getEnemyStr()} HP${getEnemyMaxHp()}</div>
     </div>
   `;
@@ -1231,7 +1231,7 @@ function renderInfo(){
   document.getElementById('sb-pop').textContent=`現在${S.pop}人（税収💰${Math.floor(S.pop/5)}/ターン）`;
   document.getElementById('sb-turn').textContent=nextWave+'ターン後';
   document.getElementById('sb-turn').className='sb-val '+waveWarn;
-  document.getElementById('sb-stage').textContent=`ウェーブ${S.stage} ｜ 外敵💪${getEnemyStr()}`;
+  document.getElementById('sb-stage').textContent=`ウェーブ${S.stage} ｜ ドラゴン💪${getEnemyStr()}`;
 }
 
 function onCard(i){
@@ -1265,7 +1265,7 @@ function mergeSelectMsg(b){
 function onCell(r,c){
   const bid=S.grid[r][c];
 
-  // ── 勇者移動フェーズ ──
+  // ── 城主移動フェーズ ──
   if(S.phase==='hero_move'){
     if(isHeroMovable(r,c)){
       heroMove(r,c);
@@ -1273,20 +1273,20 @@ function onCell(r,c){
     return;
   }
 
-  // ── 勇者配置フェーズ ──
+  // ── 城主配置フェーズ ──
   if(S.phase==='hero_place'){
     if(bid!=='enemy'){
       S.hero.r=r; S.hero.c=c; S.hero.placed=true;
       S.phase='idle';
-      S.msg='🗡️ 勇者を配置しました！';
+      S.msg='👑 城主を配置しました！';
       render();
     }
     return;
   }
 
-  // ── 外敵セル：勇者でのみ討伐可能 ──
+  // ── ドラゴンセル：城主でのみ討伐可能 ──
   if(bid==='enemy'){
-    S.msg='👹 外敵は勇者を隣に移動させて戦闘でのみ倒せます！';
+    S.msg='🐉 ドラゴンは城主を隣に移動させて戦闘でのみ倒せます！';
     render();
     return;
   }
@@ -1372,7 +1372,7 @@ function doMerge(r1,c1,r2,c2){
   const mg=mergeableNeighbor(r2,c2);
   S.msg=`🔥 合体！${b.emoji}×2→${nb.emoji}${nb.name}！${diff}${costStr}`;
   if(mg){S.selCell={r:r2,c:c2};S.phase='merge_select';render();return;}
-  // 連鎖合体なし → 勇者移動フェーズへ
+  // 連鎖合体なし → 城主移動フェーズへ
   render();
   setTimeout(()=>startHeroMovePhase(), 400);
 }
@@ -1403,7 +1403,7 @@ function cancelAction(){
   const wasPlaced = S.placed;
   S.selCard=null;S.selCell=null;S.phase='idle';
   if(wasMerge && wasPlaced){
-    S.msg='合体をキャンセル。勇者の移動へ…';
+    S.msg='合体をキャンセル。城主の移動へ…';
     render();
     setTimeout(()=>startHeroMovePhase(), 300);
     return;
@@ -1441,7 +1441,7 @@ function triggerEvent(){
   return { icon:ev.icon, name:ev.name, msg:ev.msg, detail, good:pool===EVENTS_GOOD };
 }
 
-// ── 外敵を討伐 ──
+// ── ドラゴンを討伐 ──
 function enemyDefeatCost(){ return { wood: 5 + Math.floor(S.turn * 1.5), stone: 3 + S.turn }; }
 
 function canDefeatEnemy(){ const c=enemyDefeatCost(); return S.res.wood>=c.wood && S.res.stone>=c.stone; }
@@ -1450,13 +1450,13 @@ function defeatEnemy(r,c){
   if(S.grid[r][c]!=='enemy') return;
   const cost=enemyDefeatCost();
   if(S.res.wood<cost.wood||S.res.stone<cost.stone){
-    S.msg=`👹 討伐には 🪵${cost.wood} 🪨${cost.stone} 必要（不足）`;
+    S.msg=`🐉 討伐には 🪵${cost.wood} 🪨${cost.stone} 必要（不足）`;
     render();return;
   }
   S.res.wood-=cost.wood;
   S.res.stone-=cost.stone;
   S.grid[r][c]=null;
-  S.msg=`⚔️ 外敵を討伐した！🪵-${cost.wood} 🪨-${cost.stone}`;
+  S.msg=`⚔️ ドラゴンを討伐した！🪵-${cost.wood} 🪨-${cost.stone}`;
   render();
 }
 
@@ -1467,7 +1467,7 @@ function showLevelUpBanner(level, maxHp){
   el.innerHTML=`
     <div class="lvup-icon">⬆️</div>
     <div class="lvup-text">LEVEL UP!</div>
-    <div class="lvup-detail">勇者 Lv${level}　HP上限 ${maxHp}</div>
+    <div class="lvup-detail">城主 Lv${level}　HP上限 ${maxHp}</div>
   `;
   el.style.display='flex';
   el.onanimationend=()=>{ el.style.display='none'; };
@@ -1522,7 +1522,7 @@ function nextTurn(){
   // ── 4) 新ターン開始 ──
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
 
-  // 勇者のHP自然回復（毎ターン4回復、スタン中も回復）
+  // 城主のHP自然回復（毎ターン4回復、スタン中も回復）
   if(S.hero.placed || S.hero.stunTurns>0){
     const maxHp=getHeroMaxHp();
     S.hero.hp=Math.min(maxHp, S.hero.hp+4);
@@ -1538,7 +1538,7 @@ function nextTurn(){
     const waveMsgs=triggerWave();
     waveMsg = ' ' + waveMsgs.join(' ');
     if(S.gameOver){
-      showOverlay('💀 ゲームオーバー',`ターン${S.turn}：外敵が城に到達した！\n\n🏆 最大人口: ${S.maxPop}人`);
+      showOverlay('💀 ゲームオーバー',`ターン${S.turn}：ドラゴンが城に到達した！\n\n🏆 最大人口: ${S.maxPop}人`);
       saveRanking(getScoreRecord());
       return;
     }
