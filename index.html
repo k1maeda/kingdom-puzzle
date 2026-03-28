@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.8</title>
+<title>王国パズル v5.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -224,6 +224,67 @@
     0%,100%{box-shadow:0 0 4px rgba(150,30,30,0.3)} 50%{box-shadow:0 0 12px rgba(200,40,40,0.5)}
   }
 
+  /* ── Hero Overlay ── */
+  .cell .hero-overlay {
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:flex; align-items:flex-end; justify-content:flex-end;
+    pointer-events:none; z-index:5;
+  }
+  .cell .hero-overlay .hero-badge {
+    background:rgba(218,165,32,0.9); border-radius:50%;
+    width:clamp(16px,4vw,22px); height:clamp(16px,4vw,22px);
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(0.55rem,2vw,0.7rem); margin:2px;
+    box-shadow:0 0 6px rgba(255,215,0,0.8);
+    border:1px solid #FFD700;
+  }
+  .cell.hero-here { border-color:#FFD700 !important; box-shadow:0 0 10px rgba(255,215,0,0.5) !important; }
+  .cell.hero-movable {
+    border:2px dashed #60C040 !important;
+    box-shadow:0 0 8px rgba(100,200,60,0.4) !important;
+    cursor:pointer !important;
+  }
+  .cell.hero-movable:hover { background:rgba(100,200,60,0.15) !important; }
+
+  /* ── Hero Move Phase Banner ── */
+  .hero-move-bar {
+    background:linear-gradient(135deg,#2A1A06,#3D2B1A);
+    border:1px solid #DAA520; border-radius:6px;
+    padding:6px 10px; margin:4px 0; text-align:center;
+    color:#FFD080; font-size:0.75rem;
+  }
+  .hero-move-bar button {
+    background:linear-gradient(135deg,#9B7918,#DAA520);
+    border:1px solid #FFD060; color:#1a0e06;
+    padding:4px 12px; border-radius:4px; cursor:pointer;
+    font-size:0.7rem; margin-left:8px;
+  }
+
+  /* ── Equip Panel ── */
+  .equip-panel {
+    display:flex; gap:6px; margin-top:4px; justify-content:center; flex-wrap:wrap;
+  }
+  .equip-item {
+    background:linear-gradient(145deg,#2A1A06,#1A0E06);
+    border:1px solid #5A3A14; border-radius:6px;
+    padding:6px 10px; text-align:center; flex:1; min-width:100px;
+  }
+  .equip-item .eq-icon { font-size:1.1rem; }
+  .equip-item .eq-name { font-size:0.6rem; color:#C0A060; }
+  .equip-item .eq-stat { font-size:0.75rem; color:#E0D0A0; font-weight:bold; }
+  .equip-item .eq-btn {
+    background:linear-gradient(135deg,#9B7918,#DAA520);
+    border:1px solid #FFD060; color:#1a0e06;
+    padding:3px 10px; border-radius:4px; cursor:pointer;
+    font-size:0.6rem; margin-top:4px; display:inline-block;
+  }
+  .equip-item .eq-btn:disabled { opacity:0.4; cursor:default; }
+  .equip-item .eq-btn.maxed { background:#555; border-color:#777; color:#aaa; }
+
+  /* ── Battle result flash ── */
+  .battle-win { color:#5F5; font-weight:bold; }
+  .battle-lose { color:#F88; }
+
   /* ── Turn Banner ── */
   .turn-banner {
     position:fixed; top:0; left:0; right:0; bottom:0;
@@ -250,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.8</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.0</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -265,7 +326,7 @@
 
   <div class="controls">
     <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
-    <button class="btn btn-next" onclick="nextTurn()">このターンはスキップ ⏭</button>
+    <button class="btn btn-next" onclick="startHeroMovePhase()">このターンはスキップ ⏭</button>
   </div>
 
   <!-- Stage Banner + Resource Panel -->
@@ -427,6 +488,8 @@ function initState(){
     msg:'建物カードを選んで空きマスに配置しよう！',
     gameOver:false,gameWon:false,maxPop:0,
     lastEvent:null,
+    hero:{ r:-1, c:-1, atk:3, def:2, weapon:0, armor:0, placed:false },
+    battleLog:null,
   };
   placeEnemies(enemyCount(0));
   S.offered=makeOffer();
@@ -446,7 +509,9 @@ function placeEnemies(count){
   }
 }
 
-// 外敵が隣接する空きマスに1マス拡大
+// 外敵が隣接マスに1マス拡大
+// 第1〜2段階: 空きマスのみ
+// 第3段階以降: 建物も50%で破壊（勇者のいるマスは守られる）
 function expandEnemy(){
   const adj=[[0,1],[0,-1],[1,0],[-1,0]];
   const candidates=[];
@@ -454,14 +519,26 @@ function expandEnemy(){
     if(S.grid[r][c]==='enemy'){
       for(const [dr,dc] of adj){
         const nr=r+dr, nc=c+dc;
-        if(nr>=0&&nr<5&&nc>=0&&nc<5&&!S.grid[nr][nc]){
-          candidates.push({r:nr,c:nc});
+        if(nr<0||nr>=5||nc<0||nc>=5) continue;
+        if(S.grid[nr][nc]==='enemy') continue;
+        // 勇者がいるマスは守られる
+        if(S.hero.placed && S.hero.r===nr && S.hero.c===nc) continue;
+        if(!S.grid[nr][nc]){
+          // 空きマス → 候補
+          candidates.push({r:nr,c:nc,destroy:null});
+        } else if(S.stage>=2 && Math.random()<0.5){
+          // 第3段階以降: 建物破壊候補（50%）
+          candidates.push({r:nr,c:nc,destroy:S.grid[nr][nc]});
         }
       }
     }
   }
   if(candidates.length>0){
     const p=candidates[Math.floor(Math.random()*candidates.length)];
+    if(p.destroy){
+      const b=B[p.destroy];
+      S.msg=`💥 外敵が${b?b.name:'建物'}を破壊した！`;
+    }
     S.grid[p.r][p.c]='enemy';
     return true;
   }
@@ -573,7 +650,33 @@ function calcNextTurn(){
   };
 }
 
-function render(){ renderGrid();renderCards();renderInfo();renderResPanel();document.getElementById('message').textContent=S.msg; }
+function render(){
+  renderGrid();renderCards();renderInfo();renderResPanel();
+  document.getElementById('message').textContent=S.msg;
+  // hero_move フェーズのボタン切替
+  const ctrlDiv=document.querySelector('.controls');
+  if(S.phase==='hero_move'){
+    ctrlDiv.innerHTML=`
+      <button class="btn btn-cancel" onclick="skipHeroMove()">移動スキップ</button>
+      <button class="btn btn-next" onclick="skipHeroMove()">戦闘のみ ⚔️</button>
+    `;
+  } else if(S.phase==='hero_place'){
+    ctrlDiv.innerHTML=`
+      <button class="btn btn-cancel" onclick="cancelHeroPlace()">キャンセル</button>
+    `;
+  } else {
+    ctrlDiv.innerHTML=`
+      <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
+      <button class="btn btn-next" onclick="startHeroMovePhase()">このターンはスキップ ⏭</button>
+    `;
+  }
+}
+
+function cancelHeroPlace(){
+  S.phase='idle';
+  S.msg='建物カードを選んで配置しよう！';
+  render();
+}
 
 function renderResPanel(){
   const nx=calcNextTurn();
@@ -675,9 +778,90 @@ function renderGrid(){
     } else {
       if(S.phase==='placing')div.classList.add('can-place');
     }
+    // 勇者オーバーレイ
+    if(S.hero.placed && S.hero.r===r && S.hero.c===c){
+      div.classList.add('hero-here');
+      const ho=document.createElement('div');
+      ho.className='hero-overlay';
+      ho.innerHTML='<div class="hero-badge">🗡️</div>';
+      div.appendChild(ho);
+    }
+    // 勇者移動候補ハイライト
+    if(S.phase==='hero_move' && isHeroMovable(r,c)){
+      div.classList.add('hero-movable');
+    }
     div.addEventListener('click',()=>onCell(r,c));
     g.appendChild(div);
   }
+}
+
+function isHeroMovable(r,c){
+  if(!S.hero.placed) return false;
+  const dr=Math.abs(r-S.hero.r), dc=Math.abs(c-S.hero.c);
+  if(dr+dc!==1) return false; // 隣接1マスのみ
+  if(S.grid[r][c]==='enemy') return false; // 外敵マスには入れない
+  return true;
+}
+
+function getHeroAtk(){ return S.hero.atk + S.hero.weapon * 2; }
+function getHeroDef(){ return S.hero.def + S.hero.armor * 1; }
+function getEnemyStr(){ return 3 + S.stage * 2; }
+
+function heroBattle(){
+  // 勇者の上下左右の外敵と戦闘
+  if(!S.hero.placed) return null;
+  const adj=[[0,1],[0,-1],[1,0],[-1,0]];
+  const enemies=[];
+  for(const [dr,dc] of adj){
+    const nr=S.hero.r+dr, nc=S.hero.c+dc;
+    if(nr>=0&&nr<5&&nc>=0&&nc<5&&S.grid[nr][nc]==='enemy') enemies.push({r:nr,c:nc});
+  }
+  if(enemies.length===0) return null;
+  // 最初の1体と戦闘
+  const target=enemies[0];
+  const heroP=getHeroAtk()+Math.floor(Math.random()*4);
+  const enemyP=getEnemyStr();
+  if(heroP>enemyP){
+    S.grid[target.r][target.c]=null;
+    return {win:true, msg:`⚔️ 勇者が外敵を討伐！（${heroP} vs ${enemyP}）`};
+  } else {
+    return {win:false, msg:`🛡️ 勇者は外敵に阻まれた…（${heroP} vs ${enemyP}）`};
+  }
+}
+
+function startHeroMovePhase(){
+  if(!S.hero.placed){
+    // 勇者未配置→スキップしてターン進行
+    nextTurn();
+    return;
+  }
+  S.phase='hero_move';
+  S.msg='🗡️ 勇者を移動させてください（隣接1マス）';
+  render();
+}
+
+function heroMove(r,c){
+  if(!isHeroMovable(r,c)) return;
+  S.hero.r=r; S.hero.c=c;
+  // 移動後、隣接外敵と自動戦闘
+  const result=heroBattle();
+  S.battleLog=result;
+  S.phase='idle';
+  if(result){
+    S.msg=result.msg;
+  } else {
+    S.msg='🗡️ 勇者を移動しました。';
+  }
+  nextTurn();
+}
+
+function skipHeroMove(){
+  // 移動スキップでも戦闘は発生（現在位置の隣接）
+  const result=heroBattle();
+  S.battleLog=result;
+  S.phase='idle';
+  if(result) S.msg=result.msg;
+  nextTurn();
 }
 
 function isMergeTarget(r,c){
@@ -707,6 +891,74 @@ function renderCards(){
     div.addEventListener('click',()=>onCard(i));
     el.appendChild(div);
   });
+
+  // 勇者配置ボタン（未配置の場合）
+  if(!S.hero.placed){
+    const hb=document.createElement('div');
+    hb.className='card';
+    hb.innerHTML='<span class="c-icon">🗡️</span><span class="c-lv">勇者</span><span class="c-name">勇者を配置</span><span class="c-prod">外敵と戦える！</span><span class="c-cost">コスト無し</span>';
+    hb.addEventListener('click',()=>{
+      S.phase='hero_place';
+      S.msg='🗡️ 勇者を配置するマスをタップしてください';
+      render();
+    });
+    el.appendChild(hb);
+  }
+
+  // 装備ショップ
+  renderEquipShop();
+}
+
+function renderEquipShop(){
+  let ep=document.getElementById('equip-panel');
+  if(!ep){
+    ep=document.createElement('div');
+    ep.id='equip-panel';
+    ep.className='equip-panel';
+    document.getElementById('cards').parentNode.insertBefore(ep,document.getElementById('cards').nextSibling);
+  }
+  const h=S.hero;
+  const wCost=(h.weapon+1)*10;
+  const aCost=(h.armor+1)*10;
+  const wMax=h.weapon>=5;
+  const aMax=h.armor>=5;
+  ep.innerHTML=`
+    <div class="equip-item">
+      <div class="eq-icon">⚔️</div>
+      <div class="eq-name">武器 Lv${h.weapon}</div>
+      <div class="eq-stat">攻撃力 ${getHeroAtk()}</div>
+      ${wMax?'<div class="eq-btn maxed">MAX</div>':`<button class="eq-btn" onclick="upgradeWeapon()" ${S.res.gold<wCost?'disabled':''}>強化 💰${wCost}</button>`}
+    </div>
+    <div class="equip-item">
+      <div class="eq-icon">🛡️</div>
+      <div class="eq-name">防具 Lv${h.armor}</div>
+      <div class="eq-stat">防御力 ${getHeroDef()}</div>
+      ${aMax?'<div class="eq-btn maxed">MAX</div>':`<button class="eq-btn" onclick="upgradeArmor()" ${S.res.gold<aCost?'disabled':''}>強化 💰${aCost}</button>`}
+    </div>
+    <div class="equip-item">
+      <div class="eq-icon">👹</div>
+      <div class="eq-name">外敵の強さ</div>
+      <div class="eq-stat">${getEnemyStr()}</div>
+    </div>
+  `;
+}
+
+function upgradeWeapon(){
+  const cost=(S.hero.weapon+1)*10;
+  if(S.res.gold>=cost&&S.hero.weapon<5){
+    S.res.gold-=cost;S.hero.weapon++;
+    S.msg=`⚔️ 武器を強化！Lv${S.hero.weapon}（攻撃力${getHeroAtk()}）`;
+    render();
+  }
+}
+
+function upgradeArmor(){
+  const cost=(S.hero.armor+1)*10;
+  if(S.res.gold>=cost&&S.hero.armor<5){
+    S.res.gold-=cost;S.hero.armor++;
+    S.msg=`🛡️ 防具を強化！Lv${S.hero.armor}（防御力${getHeroDef()}）`;
+    render();
+  }
 }
 
 function renderInfo(){
@@ -758,6 +1010,25 @@ function mergeSelectMsg(b){
 
 function onCell(r,c){
   const bid=S.grid[r][c];
+
+  // ── 勇者移動フェーズ ──
+  if(S.phase==='hero_move'){
+    if(isHeroMovable(r,c)){
+      heroMove(r,c);
+    }
+    return;
+  }
+
+  // ── 勇者配置フェーズ ──
+  if(S.phase==='hero_place'){
+    if(bid!=='enemy'){
+      S.hero.r=r; S.hero.c=c; S.hero.placed=true;
+      S.phase='idle';
+      S.msg='🗡️ 勇者を配置しました！';
+      render();
+    }
+    return;
+  }
 
   // ── 外敵セル：討伐アクション ──
   if(bid==='enemy'){
@@ -832,7 +1103,7 @@ function doPlace(r,c){
   S.placed=true;S.selCard=null;S.phase='idle';
   const mg=mergeableNeighbor(r,c);
   if(mg){S.selCell={r,c};S.phase='merge_select';S.msg=`✅ 配置完了！隣に合体できる建物があります。合体する → 残したい方をタップ　 合体しない → キャンセル`;}
-  else{S.msg=`✅ ${b.emoji} ${b.name}を配置！`;render();setTimeout(()=>nextTurn(), 400);return;}
+  else{S.msg=`✅ ${b.emoji} ${b.name}を配置！`;render();setTimeout(()=>startHeroMovePhase(), 400);return;}
   render();
 }
 
@@ -854,9 +1125,9 @@ function doMerge(r1,c1,r2,c2){
   const mg=mergeableNeighbor(r2,c2);
   S.msg=`🔥 合体！${b.emoji}×2→${nb.emoji}${nb.name}！${diff}${costStr}`;
   if(mg){S.selCell={r:r2,c:c2};S.phase='merge_select';render();return;}
-  // 連鎖合体なし → 自動ターン進行
+  // 連鎖合体なし → 勇者移動フェーズへ
   render();
-  setTimeout(()=>nextTurn(), 400);
+  setTimeout(()=>startHeroMovePhase(), 400);
 }
 
 function mergeableNeighbor(r,c){
@@ -876,9 +1147,9 @@ function cancelAction(){
   const wasPlaced = S.placed;
   S.selCard=null;S.selCell=null;S.phase='idle';
   if(wasMerge && wasPlaced){
-    S.msg='合体をキャンセル。ターンを進めます…';
+    S.msg='合体をキャンセル。勇者の移動へ…';
     render();
-    setTimeout(()=>nextTurn(), 300);
+    setTimeout(()=>startHeroMovePhase(), 300);
     return;
   }
   S.msg = wasMerge ? '合体をキャンセルしました。' : '建物カードを選んで配置しよう！';
