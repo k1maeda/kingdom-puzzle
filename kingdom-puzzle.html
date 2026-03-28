@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.5</title>
+<title>王国パズル v4.6</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -248,7 +248,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.5</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.6</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -880,8 +880,8 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 大雨：約33ターンに1回（3%確率）、通常イベントとは別枠
-  if(Math.random()<0.03){
+  // 大雨：約67ターンに1回（1.5%確率）、通常イベントとは別枠
+  if(Math.random()<0.015){
     const empties=[];
     for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
     if(empties.length>0){
@@ -902,7 +902,7 @@ function triggerEvent(){
 }
 
 // ── 岩を砕く ──
-function rockBreakCost(){ return { wood: 10 + S.turn * 3, stone: 5 + S.turn * 2 }; }
+function rockBreakCost(){ return { wood: 5 + Math.floor(S.turn * 1.5), stone: 3 + S.turn }; }
 
 function canBreakRock(){ const c=rockBreakCost(); return S.res.wood>=c.wood && S.res.stone>=c.stone; }
 
