@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v7.0</title>
+<title>王国パズル v8.0</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -215,6 +215,16 @@
   .tut-skip { background:linear-gradient(135deg,#2a1a0e,#3d2b1a); border-color:#5A3A14; color:#C0A060; }
   .tut-next { background:linear-gradient(135deg,#9B7918,#DAA520); border-color:#FFD060; color:#1a0e06; }
 
+  /* ── Castle Cell ── */
+  .cell.castle {
+    background: linear-gradient(145deg,#3A2A10,#2A1A08) !important;
+    border: 3px solid #DAA520 !important;
+    box-shadow: 0 0 12px rgba(218,165,32,0.4), inset 0 0 8px rgba(218,165,32,0.2);
+    position:relative;
+  }
+  .cell.castle .castle-icon { font-size:clamp(1.3rem,4vw,1.8rem); }
+  .cell.castle .castle-label { font-size:0.55rem; color:#DAA520; font-weight:bold; margin-top:2px; }
+
   /* ── Enemy Cell ── */
   .cell.enemy {
     background: linear-gradient(145deg,#4A1020,#2A0810) !important;
@@ -373,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v7.0</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.0</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -394,8 +404,8 @@
 
   <!-- Stage Banner + Resource Panel -->
   <div class="stage-banner" id="stageBanner">
-    <div class="sb-item"><span class="sb-label">あと何人</span><span class="sb-val" id="sb-need">-</span><span class="sb-sub" id="sb-pop">現在 -人</span></div>
-    <div class="sb-item"><span class="sb-label">残りターン</span><span class="sb-val" id="sb-turn">-</span><span class="sb-sub" id="sb-stage">- / ∞</span></div>
+    <div class="sb-item"><span class="sb-label">最大人口</span><span class="sb-val" id="sb-need">-</span><span class="sb-sub" id="sb-pop">現在 -人</span></div>
+    <div class="sb-item"><span class="sb-label">次ウェーブ</span><span class="sb-val" id="sb-turn">-</span><span class="sb-sub" id="sb-stage">-</span></div>
   </div>
   <div class="res-panel">
     <div class="res-panel-title">── 資源 ─── 次ターン後 ──</div>
@@ -542,21 +552,23 @@ function getStage(n){
 
 let S={};
 
+const WAVE_INTERVAL = 20; // ウェーブ間隔（ターン）
+
 function initState(){
   S={
     grid:Array(5).fill(null).map(()=>Array(5).fill(null)),
     res:{wood:30,stone:10,meat:15,gold:0}, pop:0,
-    turn:0,stage:0,offered:[],
+    turn:0,stage:0,offered:[], // stage=ウェーブ番号（敵の強さ用）
     selCard:null,selCell:null,placed:false,phase:'idle',
-    msg:'建物カードを選んで空きマスに配置しよう！',
+    msg:'建物カードを選んで空きマスに配置しよう！城を守れ！',
     gameOver:false,gameWon:false,maxPop:0,
     lastEvent:null,
     hero:{ r:-1, c:-1, atk:3, def:2, weapon:0, armor:0, placed:false,
            hp:20, maxHp:20, stunTurns:0, level:1, kills:0 },
-    enemyHp:{}, // key='r,c' → hp remaining
+    enemyHp:{},
     battleLog:null,
   };
-  placeEnemies(enemyCount(0));
+  S.grid[4][2]='castle'; // 城を配置
   S.offered=makeOffer();
 }
 
@@ -604,54 +616,74 @@ function placeEnemies(count){
   }
 }
 
-// 外敵が隣接マスに1マス拡大
-// 第1〜2段階: 空きマスのみ
-// 第3段階以降: 建物も50%で破壊（勇者のいるマスは守られる）
-function expandEnemy(){
-  const adj=[[0,1],[0,-1],[1,0],[-1,0]];
-  const candidates=[];
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    if(S.grid[r][c]==='enemy'){
-      for(const [dr,dc] of adj){
-        const nr=r+dr, nc=c+dc;
-        if(nr<0||nr>=5||nc<0||nc>=5) continue;
-        if(S.grid[nr][nc]==='enemy') continue;
-        // 勇者がいるマスは守られる
-        if(S.hero.placed && S.hero.r===nr && S.hero.c===nc) continue;
-        if(!S.grid[nr][nc]){
-          // 空きマス → 候補
-          candidates.push({r:nr,c:nc,destroy:null});
-        } else if(S.stage>=2 && Math.random()<0.5){
-          // 第3段階以降: 建物破壊候補（50%）
-          candidates.push({r:nr,c:nc,destroy:S.grid[nr][nc]});
-        }
+// 全敵を城（4,2）に向かって1マス移動
+// 建物は破壊、勇者マスには移動不可
+// 城に到達したらゲームオーバー
+function moveEnemies(){
+  const msgs=[];
+  // 下の行から順に処理（城に近い敵から）
+  for(let r=4;r>=0;r--) for(let c=0;c<5;c++){
+    if(S.grid[r][c]!=='enemy') continue;
+    const eHp=getEnemyHp(r,c);
+    // 移動先候補: 下→城に近い横
+    const targets=[];
+    if(r<4) targets.push({r:r+1,c:c}); // 下
+    if(c<2) targets.push({r:r,c:c+1}); // 右（城は中央）
+    if(c>2) targets.push({r:r,c:c-1}); // 左
+    if(c!==2 && r<4) { // 斜め方向も検討
+      if(c<2) targets.push({r:r+1,c:c+1});
+      if(c>2) targets.push({r:r+1,c:c-1});
+    }
+
+    let moved=false;
+    for(const t of targets){
+      if(t.r<0||t.r>=5||t.c<0||t.c>=5) continue;
+      const tBid=S.grid[t.r][t.c];
+      // 勇者がいるマスには移動不可
+      if(S.hero.placed && S.hero.r===t.r && S.hero.c===t.c) continue;
+      // 他の敵がいるマスには移動不可
+      if(tBid==='enemy') continue;
+      // 城に到達！
+      if(tBid==='castle'){
+        S.gameOver=true;
+        msgs.push('💀 外敵が城に到達した！');
+        return msgs;
       }
+      // 建物を破壊して移動
+      if(tBid && B[tBid]){
+        msgs.push(`💥 外敵が${B[tBid].name}を破壊！`);
+      }
+      // 移動実行
+      S.grid[r][c]=null;
+      removeEnemyHp(r,c);
+      S.grid[t.r][t.c]='enemy';
+      setEnemyHp(t.r,t.c, eHp);
+      moved=true;
+      break;
     }
   }
-  if(candidates.length>0){
-    const p=candidates[Math.floor(Math.random()*candidates.length)];
-    if(p.destroy){
-      const b=B[p.destroy];
-      S.msg=`💥 外敵が${b?b.name:'建物'}を破壊した！`;
-    }
-    S.grid[p.r][p.c]='enemy';
-    return true;
-  }
-  return false;
+  return msgs;
 }
 
-function clearEnemies(){
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    if(S.grid[r][c]==='enemy') S.grid[r][c]=null;
-  }
+// ウェーブ発生: 敵移動 + 新敵出現
+function triggerWave(){
+  const msgs=[];
+  // 1. 既存敵を移動
+  const moveMsgs=moveEnemies();
+  msgs.push(...moveMsgs);
+  if(S.gameOver) return msgs;
+  // 2. 新敵出現
+  S.stage++;
+  placeEnemies(1);
+  msgs.push(`👹 ウェーブ${S.stage}！ 新たな外敵が現れた！（💪${getEnemyStr()} HP${getEnemyMaxHp()}）`);
+  return msgs;
 }
 
 function makeOffer(){
-  // 各Lvの解放・フェードアウト・消滅ステージ（index=lv-1）
-  // Lv1: 最初から、Lv2: 第3段階、Lv3: 第5段階、Lv4: 第7段階...
-  const UNLOCK     = [0,  2,  4,  6,  8, 10, 12];
-  const FADE_START = [4,  6,  8, 10, 12, 14, 16];
-  const DISAPPEAR  = [6,  8, 10, 12, 14, 16, 18];
+  // 各Lvの解放ウェーブ（index=lv-1）、消滅なし（サバイバルなので）
+  const UNLOCK     = [0,  1,  2,  3,  4,  5,  6];
+  const FADE_START = [99, 99, 99, 99, 99, 99, 99];
+  const DISAPPEAR  = [99, 99, 99, 99, 99, 99, 99];
   const types = ['lumber','food','stone','house','market'];
 
   function lvWeight(lv){
@@ -712,7 +744,7 @@ function calcPop(){
   let p=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
-    if(bid&&bid!=='enemy'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
+    if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
   }
   p=Math.max(0,p);
   if(S.maxPop!==undefined && p>S.maxPop) S.maxPop=p;
@@ -734,7 +766,7 @@ function calcNextTurn(){
   }
   const consume=meatCost(); // calcPop()ベース
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   return {
     wood:  S.res.wood+wp,
     stone: S.res.stone+sp,
@@ -792,7 +824,7 @@ function renderResPanel(){
 
   // gold
   let goldProd=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
   const goldNext=S.res.gold+goldProd;
   document.getElementById('rn-gold').textContent=S.res.gold;
   const gEl=document.getElementById('rx-gold');
@@ -847,6 +879,28 @@ function renderGrid(){
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
     const div=document.createElement('div');
+    // 城セル
+    if(bid==='castle'){
+      div.className='cell castle';
+      div.innerHTML='<div class="castle-icon">🏰</div><div class="castle-label">城</div>';
+      // 勇者が城の上にいる場合
+      if(S.hero.placed && S.hero.r===r && S.hero.c===c){
+        div.classList.add('hero-here');
+        const ho=document.createElement('div');
+        ho.className='hero-overlay';
+        const hpPct=Math.round(S.hero.hp/getHeroMaxHp()*100);
+        const hpColor=hpPct>60?'#4CAF50':hpPct>30?'#FF9800':'#F44336';
+        ho.innerHTML=`<div class="hero-badge">🗡️</div>
+          <div class="hero-hp-text">HP ${S.hero.hp}/${getHeroMaxHp()}</div>
+          <div class="hero-hp-bar"><div class="hero-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
+        div.appendChild(ho);
+      }
+      if(S.phase==='hero_move' && isHeroMovable(r,c)){
+        div.classList.add('hero-movable');
+      }
+      div.addEventListener('click',()=>onCell(r,c));
+      g.appendChild(div);continue;
+    }
     // 外敵セル
     if(bid==='enemy'){
       div.className='cell enemy';
@@ -885,7 +939,7 @@ function renderGrid(){
       if(S.phase==='placing')div.classList.add('can-place');
     }
     // 外敵隣接警告（建物がある場合のみ）
-    if(bid && bid!=='enemy'){
+    if(bid && bid!=='enemy'&&bid!=='castle'){
       const adjE=[[0,1],[0,-1],[1,0],[-1,0]];
       let nearEnemy=false;
       for(const [dr,dc] of adjE){
@@ -1165,21 +1219,14 @@ function upgradeArmor(){
 
 function renderInfo(){
   document.getElementById('d-turn').textContent=S.turn;
-  const s=getStage(S.stage);
-  const left=Math.max(0, s.byTurn-S.turn+1);
-  const UNLOCK_D=[5,7,9,11,13,15,17];
-  const minLvNow=UNLOCK_D.findIndex(d=>S.stage<d)+1||7;
-  const UNLOCK_T=[0,0,3,5,7,9,11];
-  const maxLvNow=UNLOCK_T.reduce((acc,s,i)=>S.stage>=s?i+1:acc,1);
-  const need=Math.max(0,s.target-S.pop);
-  const turnWarnClass=left<=3?'danger':left<=6?'warn':'';
-  const needWarnClass=need===0?'good':left>0&&need/left>8?'danger':left>0&&need/left>4?'warn':'';
-  document.getElementById('sb-need').textContent=need===0?'達成！':'+'+need+'人';
-  document.getElementById('sb-need').className='sb-val '+(need===0?'good':needWarnClass);
-  document.getElementById('sb-pop').textContent=`現在${S.pop}人 / 目標${s.target}人`;
-  document.getElementById('sb-turn').textContent=left+'ターン';
-  document.getElementById('sb-turn').className='sb-val '+turnWarnClass;
-  document.getElementById('sb-stage').textContent=`${s.label} ｜ カードLv${minLvNow===maxLvNow?maxLvNow:minLvNow+'〜'+maxLvNow}`;
+  const nextWave = WAVE_INTERVAL - (S.turn % WAVE_INTERVAL);
+  const waveWarn = nextWave<=3?'danger':nextWave<=6?'warn':'';
+  document.getElementById('sb-need').textContent=S.maxPop+'人';
+  document.getElementById('sb-need').className='sb-val good';
+  document.getElementById('sb-pop').textContent=`現在${S.pop}人（税収💰${Math.floor(S.pop/5)}/ターン）`;
+  document.getElementById('sb-turn').textContent=nextWave+'ターン後';
+  document.getElementById('sb-turn').className='sb-val '+waveWarn;
+  document.getElementById('sb-stage').textContent=`ウェーブ${S.stage} ｜ 外敵💪${getEnemyStr()}`;
 }
 
 function onCard(i){
@@ -1436,7 +1483,7 @@ function nextTurn(){
     if(b&&b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
   }
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   S.res.wood+=wp;S.res.stone+=sp;S.res.meat+=mp;S.res.gold+=gp;
   const consume=meatCost();S.res.meat-=consume;
 
@@ -1451,67 +1498,50 @@ function nextTurn(){
     S._starvation=null;
   }
 
-  // ── 2) ステージクリア判定 ──
-  const st=getStage(S.stage);
-  if(S.pop>=st.target){
-    const leftTurns = st.byTurn - S.turn;
-    const bonusW = leftTurns * 2;
-    const bonusS = leftTurns * 1;
-    const bonusM = leftTurns * 1;
-    const bonusG = Math.ceil(leftTurns * 0.5);
-    S.res.wood  += bonusW;
-    S.res.stone += bonusS;
-    S.res.meat  += bonusM;
-    S.res.gold  += bonusG;
-    // 既存の岩はそのまま残し、新ステージ分だけ追加
-    const curRocks=S.grid.flat().filter(x=>x==='enemy').length;
-    S.stage++;
-    const targetRocks=enemyCount(S.stage);
-    if(targetRocks>curRocks) placeEnemies(targetRocks-curRocks);
-    const ns=getStage(S.stage);
-    const bonusMsg = leftTurns>0
-      ? `🎁 早期ボーナス(${leftTurns}ターン残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
-      : 'ギリギリクリア！ボーナスなし';
-    showBonus(bonusMsg, `次の目標: ${ns.target}人（ターン${ns.byTurn}まで）`);
-    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（ターン${ns.byTurn}まで）`;
-    return; // ボーナスポップアップ表示中はここで止める
-  }
+  // ── 2) 人口→税収 ──
+  const taxGold = Math.floor(S.pop / 5);
+  if(taxGold > 0) S.res.gold += taxGold;
 
-  // ── 3) 新ターン開始：番号を進め、バナーを表示 ──
+  // ── 3) 最大人口記録 ──
+  if(S.pop > S.maxPop) S.maxPop = S.pop;
+
+  // ── 4) 新ターン開始 ──
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
-
-  // ── ステージ期限チェック（飢餓処理後の人口 & 新ターン番号で判定） ──
-  if(S.turn>st.byTurn&&S.pop<st.target){
-    S.gameOver=true;
-    showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);
-    return;
-  }
 
   // 勇者のHP自然回復（毎ターン4回復、スタン中も回復）
   if(S.hero.placed || S.hero.stunTurns>0){
     const maxHp=getHeroMaxHp();
     S.hero.hp=Math.min(maxHp, S.hero.hp+4);
-    // スタン回復
     if(S.hero.stunTurns>0){
       S.hero.stunTurns--;
-      if(S.hero.stunTurns===0){
-        S.hero.hp=maxHp; // 全回復して復活
-      }
+      if(S.hero.stunTurns===0){ S.hero.hp=maxHp; }
     }
   }
 
-  // 外敵は段階切替時のみ増加（自動侵食なし）
+  // ── 5) ウェーブ判定（20ターンごと） ──
+  let waveMsg='';
+  if(S.turn>0 && S.turn % WAVE_INTERVAL === 0){
+    const waveMsgs=triggerWave();
+    waveMsg = ' ' + waveMsgs.join(' ');
+    if(S.gameOver){
+      showOverlay('💀 ゲームオーバー',`ターン${S.turn}：外敵が城に到達した！\n\n🏆 最大人口: ${S.maxPop}人`);
+      saveRanking(getScoreRecord());
+      return;
+    }
+  }
 
   // ランダムイベント
   const ev=triggerEvent();
   S.lastEvent=ev;
 
-  // ターンバナー（新ターン開始を宣言）
+  // ターンバナー
   showTurnBanner(S.turn, ev);
 
+  const nextWave = WAVE_INTERVAL - (S.turn % WAVE_INTERVAL);
   let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
-  let starveMsg = S._starvation ? ` 💀飢餓！人口${S._starvation.prevPop}→${S._starvation.newPop}（-${S._starvation.loss}人）` : '';
-  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn+1}ターン`;
+  let starveMsg = S._starvation ? ` 💀飢餓！人口-${S._starvation.loss}人` : '';
+  let taxMsg = taxGold>0 ? ` 💰税収+${taxGold}` : '';
+  S.msg=`ターン${S.turn} 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${taxMsg}${starveMsg}${evMsg}${waveMsg} ｜次ウェーブ${nextWave}ターン後`;
 
   S.offered=makeOffer();render();
 
@@ -1530,13 +1560,13 @@ function nextTurn(){
 
 // ── RANKING (localStorage) ──
 function getScoreRecord(){
-  return { stage:S.stage+1, turn:S.turn, maxPop:S.maxPop||S.pop, pop:S.pop, date:new Date().toLocaleDateString('ja-JP') };
+  return { wave:S.stage, turn:S.turn, maxPop:S.maxPop||S.pop, pop:S.pop, kills:S.hero.kills, date:new Date().toLocaleDateString('ja-JP') };
 }
 function loadRanking(){ try{return JSON.parse(localStorage.getItem('kp_ranking'))||[];}catch(e){return [];} }
 function saveRanking(record){
   const ranking=loadRanking();
   ranking.push(record);
-  ranking.sort((a,b)=>b.stage-a.stage || b.maxPop-a.maxPop || b.turn-a.turn);
+  ranking.sort((a,b)=>b.maxPop-a.maxPop || b.turn-a.turn);
   if(ranking.length>10) ranking.length=10; // 上位10件
   localStorage.setItem('kp_ranking',JSON.stringify(ranking));
   return ranking;
@@ -1549,7 +1579,7 @@ function rankingHTML(ranking, current){
     const isCur = r===current;
     const style=isCur?'color:#5AF;font-weight:bold;background:rgba(80,160,255,0.15);border-radius:4px;':'';
     const mark=isCur?' ← NOW':'';
-    html+=`<div style="${style}padding:3px 4px;">${i+1}. 第${r.stage}段階 / 最大${r.maxPop}人 / T${r.turn} (${r.date})${mark}</div>`;
+    html+=`<div style="${style}padding:3px 4px;">${i+1}. 最大${r.maxPop}人 / W${r.wave||0} / ターン${r.turn} / ${r.kills||0}体撃破 (${r.date})${mark}</div>`;
   });
   html+='</div>';
   return html;
