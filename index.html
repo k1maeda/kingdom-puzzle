@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v8.1</title>
+<title>王国パズル v8.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.1</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.2</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -400,6 +400,7 @@
   <div class="controls">
     <button class="btn btn-cancel" onclick="cancelAction()">✕ キャンセル</button>
     <button class="btn btn-next" onclick="startHeroMovePhase()">このターンはスキップ ⏭</button>
+    <button class="btn" onclick="surrender()" style="background:#4A1020;border-color:#7A2030;color:#FF8080;font-size:0.6rem;margin-top:4px;">🏳️ 降参</button>
   </div>
 
   <!-- Stage Banner + Resource Panel -->
@@ -552,7 +553,7 @@ function getStage(n){
 
 let S={};
 
-const WAVE_INTERVAL = 20; // ウェーブ間隔（ターン）
+const WAVE_INTERVAL = 10; // ウェーブ間隔（ターン）
 
 function initState(){
   S={
@@ -1387,6 +1388,15 @@ function canAfford(bid){
   return Object.entries(b.cost).every(([k,v])=>(S.res[k]||0)>=v);
 }
 
+
+function surrender(){
+  if(S.gameOver) return;
+  if(!confirm('降参しますか？スコアが記録されます。')) return;
+  S.gameOver=true;
+  if(S.pop>S.maxPop) S.maxPop=S.pop;
+  saveRanking(getScoreRecord());
+  showOverlay('🏳️ 降参',`ターン${S.turn}で降参しました。\n\n🏆 最大人口: ${S.maxPop}人\n⚔️ 撃破数: ${S.hero.kills}体`);
+}
 
 function cancelAction(){
   const wasMerge = S.phase==='merge_select';
