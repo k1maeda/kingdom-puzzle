@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>城主とドラゴン v8.6</title>
+<title>城主とドラゴン v8.7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>👑🐉 城主とドラゴン <span style="font-size:0.5em;color:#906030;">v8.6</span></h1>
+<h1>👑🐉 城主とドラゴン <span style="font-size:0.5em;color:#906030;">v8.7</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -437,7 +437,7 @@
       </div>
       <div class="res-item" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:4px 10px;">
         <span style="font-size:1rem;">💰</span>
-        <span style="font-size:0.55rem;color:#8A6030;">金（税収+合体コスト）</span>
+        <span style="font-size:0.55rem;color:#8A6030;">金（税収=人口数/ターン）</span>
         <span class="res-now" id="rn-gold" style="font-size:1.1rem;">0</span>
         <span class="res-next" id="rx-gold" style="font-size:0.55rem;color:#7A8C6A;">→ 0</span>
       </div>
@@ -509,13 +509,13 @@ const CHAINS = {
     {id:'stone_7',emoji:'🏔️',name:'地底鉱山',prod:{stone:41},cost:{wood:880,stone:320,gold:300},lv:7},
   ],
   house:[
-    {id:'house_1',emoji:'🏠',name:'小屋',    pop:4,  cost:{wood:6,stone:8},lv:1},
-    {id:'house_2',emoji:'🏘️',name:'長屋',    pop:8,  cost:{wood:28,stone:35},lv:2},
-    {id:'house_3',emoji:'🏡',name:'民家',    pop:16, cost:{wood:40,stone:55,gold:8},   lv:3},
-    {id:'house_4',emoji:'🏢',name:'集合住宅',pop:32, cost:{wood:80,stone:110,gold:20}, lv:4},
-    {id:'house_5',emoji:'🏣',name:'大型住宅',pop:64, cost:{wood:160,stone:220,gold:50},lv:5},
-    {id:'house_6',emoji:'🏯',name:'城下町',  pop:128,cost:{wood:320,stone:440,gold:120},lv:6},
-    {id:'house_7',emoji:'👑',name:'王城',    pop:256,cost:{wood:640,stone:880,gold:300},lv:7},
+    {id:'house_1',emoji:'🏠',name:'小屋',    pop:4,  cost:{wood:15,stone:20},lv:1},
+    {id:'house_2',emoji:'🏘️',name:'長屋',    pop:8,  cost:{wood:50,stone:60},lv:2},
+    {id:'house_3',emoji:'🏡',name:'民家',    pop:16, cost:{wood:80,stone:100,gold:10},  lv:3},
+    {id:'house_4',emoji:'🏢',name:'集合住宅',pop:32, cost:{wood:150,stone:180,gold:30}, lv:4},
+    {id:'house_5',emoji:'🏣',name:'大型住宅',pop:64, cost:{wood:280,stone:350,gold:80}, lv:5},
+    {id:'house_6',emoji:'🏯',name:'城下町',  pop:128,cost:{wood:500,stone:650,gold:180},lv:6},
+    {id:'house_7',emoji:'👑',name:'王城',    pop:256,cost:{wood:900,stone:1200,gold:400},lv:7},
   ],
   market:[
     {id:'market_1',emoji:'🏪',name:'露店',      prod:{gold:3}, cost:{wood:15,stone:10},  lv:1},
@@ -685,7 +685,7 @@ function makeOffer(){
   const UNLOCK     = [0,  1,  2,  3,  4,  5,  6];
   const FADE_START = [99, 99, 99, 99, 99, 99, 99];
   const DISAPPEAR  = [99, 99, 99, 99, 99, 99, 99];
-  const types = ['lumber','food','stone','house','market'];
+  const types = ['lumber','food','stone','house'];
 
   function lvWeight(lv){
     const i=lv-1, s=S.stage;
@@ -826,7 +826,7 @@ function renderResPanel(){
   // gold（建物生産 + 人口税収）
   let goldProd=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
-  const taxGold=Math.floor(calcPop()/5);
+  const taxGold=calcPop();
   const goldTotal=goldProd+taxGold;
   const goldNext=S.res.gold+goldTotal;
   document.getElementById('rn-gold').textContent=S.res.gold;
@@ -1228,7 +1228,7 @@ function renderInfo(){
   const waveWarn = nextWave<=3?'danger':nextWave<=6?'warn':'';
   document.getElementById('sb-need').textContent=S.maxPop+'人';
   document.getElementById('sb-need').className='sb-val good';
-  document.getElementById('sb-pop').textContent=`現在${S.pop}人（税収💰${Math.floor(S.pop/5)}/ターン）`;
+  document.getElementById('sb-pop').textContent=`現在${S.pop}人（税収💰${S.pop}/ターン）`;
   document.getElementById('sb-turn').textContent=nextWave+'ターン後';
   document.getElementById('sb-turn').className='sb-val '+waveWarn;
   document.getElementById('sb-stage').textContent=`ウェーブ${S.stage} ｜ ドラゴン💪${getEnemyStr()}`;
