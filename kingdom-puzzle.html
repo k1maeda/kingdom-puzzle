@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v8.0</title>
+<title>王国パズル v8.1</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.0</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v8.1</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -436,7 +436,7 @@
       </div>
       <div class="res-item" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:4px 10px;">
         <span style="font-size:1rem;">💰</span>
-        <span style="font-size:0.55rem;color:#8A6030;">金（合体コスト）</span>
+        <span style="font-size:0.55rem;color:#8A6030;">金（税収+合体コスト）</span>
         <span class="res-now" id="rn-gold" style="font-size:1.1rem;">0</span>
         <span class="res-next" id="rx-gold" style="font-size:0.55rem;color:#7A8C6A;">→ 0</span>
       </div>
@@ -822,14 +822,18 @@ function renderResPanel(){
   document.getElementById('rn-pop').textContent=S.pop;
   document.getElementById('rn-pop').className='res-now';
 
-  // gold
+  // gold（建物生産 + 人口税収）
   let goldProd=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&bid!=='castle'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
-  const goldNext=S.res.gold+goldProd;
+  const taxGold=Math.floor(calcPop()/5);
+  const goldTotal=goldProd+taxGold;
+  const goldNext=S.res.gold+goldTotal;
   document.getElementById('rn-gold').textContent=S.res.gold;
   const gEl=document.getElementById('rx-gold');
-  gEl.textContent=`→ ${goldNext}（+${goldProd}/ターン）`;
-  gEl.className='res-next'+(goldProd>0?' pos':'');
+  const taxLabel=taxGold>0?` 👥税収+${taxGold}`:'';
+  const prodLabel=goldProd>0?` 建物+${goldProd}`:'';
+  gEl.textContent=`→ ${goldNext}（${prodLabel}${taxLabel} 計+${goldTotal}/ターン）`;
+  gEl.className='res-next'+(goldTotal>0?' pos':'');
 
   // next-turn preview
   const setNx=(key,cur,nxt)=>{
