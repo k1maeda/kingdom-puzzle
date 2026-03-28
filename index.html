@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.7</title>
+<title>王国パズル v4.8</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -208,19 +208,21 @@
   .tut-skip { background:linear-gradient(135deg,#2a1a0e,#3d2b1a); border-color:#5A3A14; color:#C0A060; }
   .tut-next { background:linear-gradient(135deg,#9B7918,#DAA520); border-color:#FFD060; color:#1a0e06; }
 
-  /* ── Rock Cell ── */
-  .cell.rock {
-    background: linear-gradient(145deg,#1A3A4A,#0A2530) !important;
-    background-image: linear-gradient(145deg,#1A3A4A,#0A2530),
-      radial-gradient(ellipse at 30% 60%, rgba(80,160,200,0.25) 0%, transparent 60%),
-      radial-gradient(ellipse at 70% 40%, rgba(60,140,180,0.2) 0%, transparent 50%) !important;
-    border: 2px solid #3A6A7A; cursor: default;
+  /* ── Enemy Cell ── */
+  .cell.enemy {
+    background: linear-gradient(145deg,#4A1020,#2A0810) !important;
+    border: 2px solid #7A2030; cursor: pointer;
     overflow: hidden; position: relative;
+    animation: enemyPulse 2.5s ease-in-out infinite;
   }
-  .cell.rock .rock-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
-  .cell.rock .rock-label { font-size:0.6rem; color:#8AC0D0; margin-top:3px; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
-  .cell.rock.rock-breakable { border-color:#6AA030; cursor:pointer; box-shadow: 0 0 8px rgba(100,180,60,0.4); }
-  .cell.rock.rock-breakable .rock-label { color:#C0E060; }
+  .cell.enemy .enemy-icon { font-size:clamp(1.1rem,3.5vw,1.5rem); }
+  .cell.enemy .enemy-label { font-size:0.6rem; color:#FF8080; margin-top:3px; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .cell.enemy .enemy-cost { font-size:0.45rem; color:#CC8060; margin-top:1px; }
+  .cell.enemy.enemy-affordable { border-color:#C06020; cursor:pointer; box-shadow: 0 0 8px rgba(200,100,40,0.5); }
+  .cell.enemy.enemy-affordable .enemy-label { color:#FFB060; }
+  @keyframes enemyPulse {
+    0%,100%{box-shadow:0 0 4px rgba(150,30,30,0.3)} 50%{box-shadow:0 0 12px rgba(200,40,40,0.5)}
+  }
 
   /* ── Turn Banner ── */
   .turn-banner {
@@ -248,7 +250,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.7</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.8</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -426,27 +428,49 @@ function initState(){
     gameOver:false,gameWon:false,maxPop:0,
     lastEvent:null,
   };
-  placeRocks(rockCount(0));
+  placeEnemies(enemyCount(0));
   S.offered=makeOffer();
 }
 
-function rockCount(stage){ return Math.min(4, 1 + stage); }
+function enemyCount(stage){ return Math.min(4, 1 + stage); }
 
-function placeRocks(count){
-  // 空きマスを収集してシャッフル
-  const empties=[];
+function placeEnemies(count){
+  // 端（辺）の空きマスに配置
+  const edges=[];
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    if(!S.grid[r][c]) empties.push({r,c});
+    if(!S.grid[r][c] && (r===0||r===4||c===0||c===4)) edges.push({r,c});
   }
-  empties.sort(()=>Math.random()-0.5);
-  for(let i=0;i<Math.min(count,empties.length);i++){
-    S.grid[empties[i].r][empties[i].c]='rock';
+  edges.sort(()=>Math.random()-0.5);
+  for(let i=0;i<Math.min(count,edges.length);i++){
+    S.grid[edges[i].r][edges[i].c]='enemy';
   }
 }
 
-function clearRocks(){
+// 外敵が隣接する空きマスに1マス拡大
+function expandEnemy(){
+  const adj=[[0,1],[0,-1],[1,0],[-1,0]];
+  const candidates=[];
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    if(S.grid[r][c]==='rock') S.grid[r][c]=null;
+    if(S.grid[r][c]==='enemy'){
+      for(const [dr,dc] of adj){
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5&&!S.grid[nr][nc]){
+          candidates.push({r:nr,c:nc});
+        }
+      }
+    }
+  }
+  if(candidates.length>0){
+    const p=candidates[Math.floor(Math.random()*candidates.length)];
+    S.grid[p.r][p.c]='enemy';
+    return true;
+  }
+  return false;
+}
+
+function clearEnemies(){
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    if(S.grid[r][c]==='enemy') S.grid[r][c]=null;
   }
 }
 
@@ -516,7 +540,7 @@ function calcPop(){
   let p=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
-    if(bid&&bid!=='rock'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
+    if(bid&&bid!=='enemy'&&B[bid]&&B[bid].type==='house') p+=B[bid].pop;
   }
   p=Math.max(0,p);
   if(S.maxPop!==undefined && p>S.maxPop) S.maxPop=p;
@@ -533,12 +557,12 @@ function meatCost(){
 function calcNextTurn(){
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const bid=S.grid[r][c];if(!bid||bid==='rock')continue;const b=B[bid];
+    const bid=S.grid[r][c];if(!bid||bid==='enemy')continue;const b=B[bid];
     if(b&&b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
   }
   const consume=meatCost(); // calcPop()ベース
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   return {
     wood:  S.res.wood+wp,
     stone: S.res.stone+sp,
@@ -570,7 +594,7 @@ function renderResPanel(){
 
   // gold
   let goldProd=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)goldProd+=B[bid].prod.gold;}
   const goldNext=S.res.gold+goldProd;
   document.getElementById('rn-gold').textContent=S.res.gold;
   const gEl=document.getElementById('rx-gold');
@@ -618,12 +642,12 @@ function renderGrid(){
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
     const bid=S.grid[r][c];
     const div=document.createElement('div');
-    // 岩セル
-    if(bid==='rock'){
-      const rc=rockBreakCost();
-      const affordable=canBreakRock();
-      div.className='cell rock'+(affordable?' rock-breakable':'');
-      div.innerHTML=`<div class="rock-icon">🌊</div><div class="rock-label">⛏🪵${rc.wood}🪨${rc.stone}</div>`;
+    // 外敵セル
+    if(bid==='enemy'){
+      const rc=enemyDefeatCost();
+      const affordable=canDefeatEnemy();
+      div.className='cell enemy'+(affordable?' enemy-affordable':'');
+      div.innerHTML=`<div class="enemy-icon">👹</div><div class="enemy-label">外敵</div><div class="enemy-cost">⚔🪵${rc.wood}🪨${rc.stone}</div>`;
       div.onclick=()=>onCell(r,c);
       g.appendChild(div);continue;
     }
@@ -735,15 +759,15 @@ function mergeSelectMsg(b){
 function onCell(r,c){
   const bid=S.grid[r][c];
 
-  // ── 岩セル：砕くアクション ──
-  if(bid==='rock'){
-    const cost=rockBreakCost();
-    if(canBreakRock()){
-      if(confirm(`岩を砕きますか？\n必要資源: 🪵${cost.wood} 🪨${cost.stone}`)){
-        breakRock(r,c);
+  // ── 外敵セル：討伐アクション ──
+  if(bid==='enemy'){
+    const cost=enemyDefeatCost();
+    if(canDefeatEnemy()){
+      if(confirm(`外敵を討伐しますか？\n必要資源: 🪵${cost.wood} 🪨${cost.stone}`)){
+        defeatEnemy(r,c);
       }
     } else {
-      S.msg=`🪨 岩を砕くには 🪵${cost.wood} 🪨${cost.stone} 必要`;
+      S.msg=`👹 討伐には 🪵${cost.wood} 🪨${cost.stone} 必要`;
       render();
     }
     return;
@@ -880,14 +904,10 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 大雨：約67ターンに1回（1.5%確率）、通常イベントとは別枠
+  // 外敵侵攻：約67ターンに1回（1.5%確率）、隣接マスに拡大
   if(Math.random()<0.015){
-    const empties=[];
-    for(let r=0;r<5;r++) for(let c=0;c<5;c++){ if(!S.grid[r][c]) empties.push({r,c}); }
-    if(empties.length>0){
-      const p=empties[Math.floor(Math.random()*empties.length)];
-      S.grid[p.r][p.c]='rock';
-      return { icon:'🌧️', name:'大雨', msg:'大雨で湿地帯になってしまった！', detail:'湿地+1', good:false };
+    if(expandEnemy()){
+      return { icon:'👹', name:'外敵侵攻', msg:'外敵が領土を拡大してきた！', detail:'外敵+1', good:false };
     }
   }
 
@@ -901,22 +921,22 @@ function triggerEvent(){
   return { icon:ev.icon, name:ev.name, msg:ev.msg, detail, good:pool===EVENTS_GOOD };
 }
 
-// ── 岩を砕く ──
-function rockBreakCost(){ return { wood: 5 + Math.floor(S.turn * 1.5), stone: 3 + S.turn }; }
+// ── 外敵を討伐 ──
+function enemyDefeatCost(){ return { wood: 5 + Math.floor(S.turn * 1.5), stone: 3 + S.turn }; }
 
-function canBreakRock(){ const c=rockBreakCost(); return S.res.wood>=c.wood && S.res.stone>=c.stone; }
+function canDefeatEnemy(){ const c=enemyDefeatCost(); return S.res.wood>=c.wood && S.res.stone>=c.stone; }
 
-function breakRock(r,c){
-  if(S.grid[r][c]!=='rock') return;
-  const cost=rockBreakCost();
+function defeatEnemy(r,c){
+  if(S.grid[r][c]!=='enemy') return;
+  const cost=enemyDefeatCost();
   if(S.res.wood<cost.wood||S.res.stone<cost.stone){
-    S.msg=`🪨 岩を砕くには 🪵${cost.wood} 🪨${cost.stone} 必要（不足）`;
+    S.msg=`👹 討伐には 🪵${cost.wood} 🪨${cost.stone} 必要（不足）`;
     render();return;
   }
   S.res.wood-=cost.wood;
   S.res.stone-=cost.stone;
   S.grid[r][c]=null;
-  S.msg=`⛏️ 岩を砕いた！🪵-${cost.wood} 🪨-${cost.stone}`;
+  S.msg=`⚔️ 外敵を討伐した！🪵-${cost.wood} 🪨-${cost.stone}`;
   render();
 }
 
@@ -941,11 +961,11 @@ function nextTurn(){
   S.pop=calcPop();
   let wp=0,sp=0,mp=0;
   for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const bid=S.grid[r][c];if(!bid||bid==='rock')continue;const b=B[bid];
+    const bid=S.grid[r][c];if(!bid||bid==='enemy')continue;const b=B[bid];
     if(b&&b.prod){if(b.prod.wood)wp+=b.prod.wood;if(b.prod.stone)sp+=b.prod.stone;if(b.prod.meat)mp+=b.prod.meat;}
   }
   let gp=0;
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='rock'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){const bid=S.grid[r][c];if(bid&&bid!=='enemy'&&B[bid]&&B[bid].prod&&B[bid].prod.gold)gp+=B[bid].prod.gold;}
   S.res.wood+=wp;S.res.stone+=sp;S.res.meat+=mp;S.res.gold+=gp;
   const consume=meatCost();S.res.meat-=consume;
 
@@ -973,10 +993,10 @@ function nextTurn(){
     S.res.meat  += bonusM;
     S.res.gold  += bonusG;
     // 既存の岩はそのまま残し、新ステージ分だけ追加
-    const curRocks=S.grid.flat().filter(x=>x==='rock').length;
+    const curRocks=S.grid.flat().filter(x=>x==='enemy').length;
     S.stage++;
-    const targetRocks=rockCount(S.stage);
-    if(targetRocks>curRocks) placeRocks(targetRocks-curRocks);
+    const targetRocks=enemyCount(S.stage);
+    if(targetRocks>curRocks) placeEnemies(targetRocks-curRocks);
     const ns=getStage(S.stage);
     const bonusMsg = leftTurns>0
       ? `🎁 早期ボーナス(${leftTurns}ターン残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
@@ -994,6 +1014,12 @@ function nextTurn(){
     S.gameOver=true;
     showOverlay('💀 ゲームオーバー',`${st.label}：ターン${st.byTurn}までに${st.target}人に届かず（${S.pop}人）`);
     return;
+  }
+
+  // 外敵の自動侵食: ステージ×1%（最大5%）、ターン5以降
+  if(S.turn>5){
+    const expandChance = Math.min(0.05, S.stage * 0.01);
+    if(Math.random()<expandChance) expandEnemy();
   }
 
   // ランダムイベント
