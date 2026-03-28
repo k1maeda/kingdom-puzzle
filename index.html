@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>城主とドラゴン v9.1</title>
+<title>城主とドラゴン v9.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -383,7 +383,7 @@
 </style>
 </head>
 <body>
-<h1>👑🐉 城主とドラゴン <span style="font-size:0.5em;color:#906030;">v9.1</span></h1>
+<h1>👑🐉 城主とドラゴン <span style="font-size:0.5em;color:#906030;">v9.2</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -1035,7 +1035,7 @@ function heroBattle(){
     removeEnemyHp(t.r,t.c);
     S.hero.kills++;
     S.hero.level++;
-    S.hero.hp=Math.min(S.hero.hp+8, getHeroMaxHp()); // レベルアップ分HP回復
+    S.hero.hp=Math.min(S.hero.hp+Math.ceil(getHeroMaxHp()*0.3), getHeroMaxHp()); // レベルアップ分HP回復
     showLevelUpBanner(S.hero.level, getHeroMaxHp());
     msgs.push(`🎉 ドラゴンを撃破！ Lv${S.hero.level}に上昇！（HP上限${getHeroMaxHp()}）`);
     return {win:true, killed:true, msg:msgs.join(' / ')};
@@ -1061,7 +1061,7 @@ function heroBattle(){
     S.grid[S.hero.r][S.hero.c]='enemy';
     setEnemyHp(S.hero.r,S.hero.c, eHp); // 残HPを引き継ぐ
     // スタン：HP全回復まで行動不能
-    S.hero.stunTurns=Math.ceil(getHeroMaxHp()/4); // 約5ターンで全回復
+    S.hero.stunTurns=5; // 固定5ターンで全回復（HP回復は20%/ターンで追いつく）
     S.hero.r=-1; S.hero.c=-1; S.hero.placed=false;
     msgs.push(`💀 城主が倒れた！${S.hero.stunTurns}ターン回復中${downMsg}`);
     return {win:false, killed:false, heroDown:true, msg:msgs.join(' / ')};
@@ -1522,10 +1522,11 @@ function nextTurn(){
   // ── 4) 新ターン開始 ──
   S.turn++;S.placed=false;S.selCard=null;S.selCell=null;S.phase='idle';
 
-  // 城主のHP自然回復（毎ターン4回復、スタン中も回復）
+  // 城主のHP自然回復（毎ターンmaxHPの20%回復、スタン中も回復）
   if(S.hero.placed || S.hero.stunTurns>0){
     const maxHp=getHeroMaxHp();
-    S.hero.hp=Math.min(maxHp, S.hero.hp+4);
+    const heal=Math.max(2, Math.ceil(maxHp*0.2));
+    S.hero.hp=Math.min(maxHp, S.hero.hp+heal);
     if(S.hero.stunTurns>0){
       S.hero.stunTurns--;
       if(S.hero.stunTurns===0){ S.hero.hp=maxHp; }
