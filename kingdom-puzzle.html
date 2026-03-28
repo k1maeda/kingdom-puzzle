@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.6</title>
+<title>王国パズル v4.7</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -248,7 +248,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.6</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.7</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -296,7 +296,7 @@
         <span class="res-icon">👥</span>
         <span class="res-label">人口</span>
         <span class="res-now" id="rn-pop">0</span>
-        <span class="res-next" id="rx-pop">消費-0/T</span>
+        <span class="res-next" id="rx-pop">消費-0/ターン</span>
       </div>
       <div class="res-item" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;padding:4px 10px;">
         <span style="font-size:1rem;">💰</span>
@@ -345,7 +345,7 @@
 // ── BUILDINGS ──
 const CHAINS = {
   lumber:[
-    {id:'lumber_1',emoji:'🪵',name:'木こり小屋',prod:{wood:3}, cost:{wood:8},          lv:1},
+    {id:'lumber_1',emoji:'🪵',name:'木こり小屋',prod:{wood:3}, cost:{stone:6},         lv:1},
     {id:'lumber_2',emoji:'🏚️',name:'製材所',    prod:{wood:5}, cost:{wood:35,stone:15}, lv:2},
     {id:'lumber_3',emoji:'🌲',name:'林業小屋',  prod:{wood:8}, cost:{wood:50,stone:18,gold:8},   lv:3},
     {id:'lumber_4',emoji:'🌳',name:'材木所',    prod:{wood:12},cost:{wood:100,stone:35,gold:20}, lv:4},
@@ -574,7 +574,7 @@ function renderResPanel(){
   const goldNext=S.res.gold+goldProd;
   document.getElementById('rn-gold').textContent=S.res.gold;
   const gEl=document.getElementById('rx-gold');
-  gEl.textContent=`→ ${goldNext}（+${goldProd}/T）`;
+  gEl.textContent=`→ ${goldNext}（+${goldProd}/ターン）`;
   gEl.className='res-next'+(goldProd>0?' pos':'');
 
   // next-turn preview
@@ -608,7 +608,7 @@ function renderResPanel(){
     popEl.textContent=`⚠ 飢餓！人口-${popLoss}`;
     popEl.className='res-next danger';
   } else {
-    popEl.textContent=`人口÷2 = 消費${consume}/T`;
+    popEl.textContent=`人口÷2 = 消費${consume}/ターン`;
     popEl.className='res-next';
   }
 }
@@ -673,7 +673,7 @@ function renderCards(){
     const div=document.createElement('div');
     div.className='card'+(S.selCard===i?' selected-card':'')+(ok?'':' locked');
     const costStr=b.cost?Object.entries(b.cost).map(([k,v])=>`${ri(k)}${v}`).join(' '):'合体のみ';
-    const prodStr=b.prod?Object.entries(b.prod).map(([k,v])=>`${ri(k)}+${v}/T`).join(' '):(b.type==='house'?`👥${b.pop}人が住む`:'');
+    const prodStr=b.prod?Object.entries(b.prod).map(([k,v])=>`${ri(k)}+${v}/ターン`).join(' '):(b.type==='house'?`👥${b.pop}人が住む`:'');
     let cmp='';
     if(b.lv>=2&&b.prod){
       const prev=CHAINS[b.type][b.lv-2];
@@ -699,7 +699,7 @@ function renderInfo(){
   document.getElementById('sb-need').textContent=need===0?'達成！':'+'+need+'人';
   document.getElementById('sb-need').className='sb-val '+(need===0?'good':needWarnClass);
   document.getElementById('sb-pop').textContent=`現在${S.pop}人 / 目標${s.target}人`;
-  document.getElementById('sb-turn').textContent=left+'T';
+  document.getElementById('sb-turn').textContent=left+'ターン';
   document.getElementById('sb-turn').className='sb-val '+turnWarnClass;
   document.getElementById('sb-stage').textContent=`${s.label} ｜ カードLv${minLvNow===maxLvNow?maxLvNow:minLvNow+'〜'+maxLvNow}`;
 }
@@ -722,7 +722,7 @@ function mergeSelectMsg(b){
     const icon=ri(k);
     const before=(b.prod[k]||0)*2;
     const after=nb.prod[k]||0;
-    info=`\n📊 合体前: ${b.emoji}×2 = ${icon}${before}/T → 合体後: ${nb.emoji} = ${icon}${after}/T（-${before-after}）`;
+    info=`\n📊 合体前: ${b.emoji}×2 = ${icon}${before}/T → 合体後: ${nb.emoji} = ${icon}${after}/ターン（-${before-after}）`;
   } else if(b.type==='house'&&nb.pop){
     const before=b.pop*2;
     const after=nb.pop;
@@ -825,7 +825,7 @@ function doMerge(r1,c1,r2,c2){
   S.placed=true; // 合体で1ターン消費
   S.pop=calcPop(); // 合体後に再計算
   let diff='';
-  if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];const was=(b.prod[k]||0)*2;const now=nb.prod[k]||0;diff=` 生産:${was}→${now}/T（-${was-now}）`;}
+  if(b.prod&&nb.prod){const k=Object.keys(b.prod)[0];const was=(b.prod[k]||0)*2;const now=nb.prod[k]||0;diff=` 生産:${was}→${now}/ターン（-${was-now}）`;}
   const costStr=cost>0?` 💰-${cost}`:'';
   const mg=mergeableNeighbor(r2,c2);
   S.msg=`🔥 合体！${b.emoji}×2→${nb.emoji}${nb.name}！${diff}${costStr}`;
@@ -979,10 +979,10 @@ function nextTurn(){
     if(targetRocks>curRocks) placeRocks(targetRocks-curRocks);
     const ns=getStage(S.stage);
     const bonusMsg = leftTurns>0
-      ? `🎁 早期ボーナス(${leftTurns}T残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
+      ? `🎁 早期ボーナス(${leftTurns}ターン残)！🪵+${bonusW} 🪨+${bonusS} 🥩+${bonusM} 💰+${bonusG}`
       : 'ギリギリクリア！ボーナスなし';
-    showBonus(bonusMsg, `次の目標: ${ns.target}人（T${ns.byTurn}まで）`);
-    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（T${ns.byTurn}まで）`;
+    showBonus(bonusMsg, `次の目標: ${ns.target}人（ターン${ns.byTurn}まで）`);
+    S.msg=`🎉 ${st.label}クリア！次→${ns.target}人（ターン${ns.byTurn}まで）`;
     return; // ボーナスポップアップ表示中はここで止める
   }
 
@@ -1005,7 +1005,7 @@ function nextTurn(){
 
   let evMsg = ev ? ` ${ev.icon}${ev.name}！${ev.detail}` : '';
   let starveMsg = S._starvation ? ` 💀飢餓！人口${S._starvation.prevPop}→${S._starvation.newPop}（-${S._starvation.loss}人）` : '';
-  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn+1}T`;
+  S.msg=`ターン${S.turn}開始 🪵+${wp} 🪨+${sp} 🥩+${mp}-${consume}${starveMsg}${evMsg} ｜残り${st.byTurn-S.turn+1}ターン`;
 
   S.offered=makeOffer();render();
 
