@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.3</title>
+<title>王国パズル v6.4</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -320,7 +320,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.3</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.4</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -756,27 +756,34 @@ function renderResPanel(){
   setNx('wood', S.res.wood, nx.wood);
   setNx('stone',S.res.stone,nx.stone);
 
-  // meat: show production AND consumption
+  // meat: わかりやすい表記
   const meatEl=document.getElementById('rx-meat');
   const mp=nx.prodM;
-  const meatDiff=mp-consume; // net change per turn
-  const sign=meatDiff>=0?'+':'';
   if(meatNext<0){
-    meatEl.textContent=`→ 0（+${mp} -${consume} 肉不足！）`;
+    meatEl.textContent=`→ 0 ⚠肉不足！（生産${mp} 食費${consume}）`;
     meatEl.className='res-next danger';
+  } else if(mp>0 && consume>0){
+    meatEl.textContent=`→ ${meatNext}（生産${mp} 食費${consume}）`;
+    meatEl.className='res-next'+(mp>consume?' pos':mp<consume?' neg':'');
+  } else if(consume>0){
+    meatEl.textContent=`→ ${meatNext}（食費${consume}）`;
+    meatEl.className='res-next neg';
   } else {
-    meatEl.textContent=`→ ${meatNext}（+${mp} -${consume} 計${sign}${meatDiff}）`;
-    meatEl.className='res-next'+(meatDiff>0?' pos':meatDiff<0?' neg':'');
+    meatEl.textContent=`→ ${meatNext}`;
+    meatEl.className='res-next';
   }
 
-  // pop: show population change only
+  // pop: わかりやすい表記
   const popEl=document.getElementById('rx-pop');
   if(meatNext<0){
     const popLoss=Math.max(1,Math.ceil(Math.abs(meatNext)));
-    popEl.textContent=`⚠ 飢餓！人口-${popLoss}`;
+    popEl.textContent=`⚠ 肉不足で人口${popLoss}人減少！`;
     popEl.className='res-next danger';
+  } else if(consume>0){
+    popEl.textContent=`毎ターン肉${consume}を食費として消費`;
+    popEl.className='res-next';
   } else {
-    popEl.textContent=`人口÷2 = 消費${consume}/ターン`;
+    popEl.textContent=`人口が増えると肉を消費します`;
     popEl.className='res-next';
   }
 }
