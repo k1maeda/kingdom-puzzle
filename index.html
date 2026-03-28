@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v5.7</title>
+<title>王国パズル v5.8</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -311,7 +311,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.7</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v5.8</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -1264,13 +1264,6 @@ function triggerEvent(){
   // ターン1〜3はイベントなし
   if(S.turn<=3) return null;
 
-  // 外敵侵攻：約67ターンに1回（1.5%確率）、隣接マスに拡大
-  if(Math.random()<0.015){
-    if(expandEnemy()){
-      return { icon:'👹', name:'外敵侵攻', msg:'外敵が領土を拡大してきた！', detail:'外敵+1', good:false };
-    }
-  }
-
   // 通常イベント: 20% + ステージ×3%（最大35%）
   const chance = 0.20 + Math.min(0.15, S.stage * 0.03);
   if(Math.random() > chance) return null;
@@ -1389,11 +1382,7 @@ function nextTurn(){
     }
   }
 
-  // 外敵の自動侵食: ステージ×1%（最大5%）、ターン5以降
-  if(S.turn>5){
-    const expandChance = Math.min(0.05, S.stage * 0.01);
-    if(Math.random()<expandChance) expandEnemy();
-  }
+  // 外敵は段階切替時のみ増加（自動侵食なし）
 
   // ランダムイベント
   const ev=triggerEvent();
