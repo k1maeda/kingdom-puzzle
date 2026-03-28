@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v6.7</title>
+<title>王国パズル v6.8</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,6 +52,13 @@
   .sb-val.good   { color: #60FF90; }
 
   /* ── Grid ── */
+  .enemy-spawn-bar {
+    text-align:center; font-size:0.65rem; color:#FF6060; padding:4px 0;
+    background:linear-gradient(180deg,rgba(120,20,30,0.6),transparent);
+    border-radius:12px 12px 0 0; letter-spacing:2px;
+    animation: spawnPulse 2s ease-in-out infinite;
+  }
+  @keyframes spawnPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
   .grid-wrap {
     background: linear-gradient(145deg,#2a1a0a,#1a0e06); border: 3px solid #6B4A14;
     border-bottom-color: #3A2A0A; border-right-color: #3A2A0A;
@@ -366,7 +373,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.7</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v6.8</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -374,6 +381,7 @@
   </div>
 
   <div class="grid-wrap">
+    <div class="enemy-spawn-bar">👹 外敵の侵入方向 ▼▼▼</div>
     <div class="grid" id="grid"></div>
   </div>
 
