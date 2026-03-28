@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>王国パズル v4.4</title>
+<title>王国パズル v4.5</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -248,7 +248,7 @@
 </style>
 </head>
 <body>
-<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.4</span></h1>
+<h1>⚔️ 王国パズル <span style="font-size:0.5em;color:#906030;">v4.5</span></h1>
 
 <div class="game-area">
   <div class="top-row">
@@ -588,19 +588,17 @@ function renderResPanel(){
   setNx('wood', S.res.wood, nx.wood);
   setNx('stone',S.res.stone,nx.stone);
 
-  // meat: show consumption info here
+  // meat: show production AND consumption
   const meatEl=document.getElementById('rx-meat');
+  const mp=nx.prodM;
+  const meatDiff=mp-consume; // net change per turn
+  const sign=meatDiff>=0?'+':'';
   if(meatNext<0){
-    meatEl.textContent=`→ 0（-${consume}/T 肉不足！）`;
+    meatEl.textContent=`→ 0（+${mp} -${consume} 肉不足！）`;
     meatEl.className='res-next danger';
-  } else if(meatNext < consume * 2){
-    meatEl.textContent=`→ ${meatNext}（-${consume}/T 残りわずか）`;
-    meatEl.className='res-next neg';
   } else {
-    const diff=meatNext-S.res.meat;
-    const sign=diff>=0?'+':'';
-    meatEl.textContent=`→ ${meatNext}（${sign}${diff}） 消費${consume}/T`;
-    meatEl.className='res-next'+(diff>0?' pos':diff<0?' neg':'');
+    meatEl.textContent=`→ ${meatNext}（+${mp} -${consume} 計${sign}${meatDiff}）`;
+    meatEl.className='res-next'+(meatDiff>0?' pos':meatDiff<0?' neg':'');
   }
 
   // pop: show population change only
